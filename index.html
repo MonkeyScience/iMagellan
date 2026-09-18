@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>iMagellan</title>
+<link rel="manifest" href="./manifest.webmanifest"/>
+<meta name="theme-color" content="#0a4a58"/>
+<style>
+html,body{height:100%;margin:0;background:#071018;color:#eef4fa;font-family:system-ui,sans-serif}
+body{padding:24px}
+a{color:#67e8f9}
+#wx{margin-top:12px;font-size:28px}
+</style></head>
+<body>
+<h1>iMagellan</h1>
+<p>Passage briefing PWA. Not a chart.</p>
+<div id="wx">checking /api/health…</div>
+<script>
+Promise.all([
+  fetch("/api/health").then(r=>r.json()).catch(()=>({ok:false})),
+  fetch("/api/wx?lat=49.30&lon=-2.43").then(r=>r.json()).catch(()=>({ok:false}))
+]).then(([h,w])=>{
+  const el=document.getElementById("wx");
+  if(!h.ok){el.textContent="API down";return;}
+  const spd=(w.weather&&w.weather.wind_speed_10m||[])[12];
+  el.textContent=h.ok?("API up"+(spd!=null?" · "+spd+" kn":"")):"offline";
+});
+</script>
+</body></html>

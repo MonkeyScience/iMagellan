@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -34,6 +35,11 @@ async def wx(lat: float = Query(49.30), lon: float = Query(-2.43)):
 
 @app.get("/")
 def root():
-    return FileResponse(ROOT / "index.html")
+    page = ROOT / "index.html"
+    if page.exists():
+        return FileResponse(page)
+    return JSONResponse({"ok": True, "app": "iMagellan", "hint": "index.html missing"})
 
-app.mount("/", StaticFiles(directory=str(ROOT), html=True), name="static")
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", "8080")))
