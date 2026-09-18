@@ -9,6 +9,30 @@
 </head>
 <body style="margin:0;background:#071018">
 <script>
+(function(){
+var patch = "<scr"+"ipt>(function(){\n"+
+"var ALIAS={spp:['spp','st peter','peter port','guernsey','st james','st. james'],sark:['sark'],helier:['helier','st helier','jersey'],sablons:['sablons','st malo','st-malo','stmalo','saint malo'],granville:['granville'],carteret:['carteret']};\n"+
+"function findPort(s,which){var hit=null,idx=which==='from'?999:-1;Object.keys(ALIAS).forEach(function(k){ALIAS[k].forEach(function(a){var i=s.indexOf(a);if(i<0)return;if(which==='from'&&(hit===null||i<idx)){hit=k;idx=i;}if(which==='to'&&i>idx){hit=k;idx=i;}});});return hit;}\n"+
+"function parsePrompt(){\n"+
+"  var box=document.getElementById('rprompt');if(!box)return;\n"+
+"  var s=(box.value||'').toLowerCase();\n"+
+"  var fk=findPort(s,'from')||'spp',tk=findPort(s,'to');if(!tk||tk===fk)tk='sablons';\n"+
+"  var east=/east[- ]?about|east of jersey|east of the minquiers/.test(s);\n"+
+"  var west=/west[- ]?about|west of jersey|west of the minquiers/.test(s);\n"+
+"  var rf=document.getElementById('rfrom'),rt=document.getElementById('rto');\n"+
+"  if(rf)rf.value=fk;if(rt)rt.value=tk;\n"+
+"  var r=document.getElementById('vRuss');if(r)r.checked=!/avoid russell|skip russell/.test(s);\n"+
+"  var wj=document.getElementById('vWJer');if(wj)wj.checked=!east;\n"+
+"  var wm=document.getElementById('vWMin');if(wm)wm.checked=!east;\n"+
+"  var ej=document.getElementById('vEJer');if(ej)ej.checked=!!east&&!west;\n"+
+"  var lm=s.match(/leav\\w*\\s+(?:at\\s+)?(\\d{1,2})(?:[:.](\\d{2}))?/);\n"+
+"  if(lm){var dep=(+lm[1])*60+(+(lm[2]||0));var d=document.getElementById('dep');if(d)d.value=dep;var t=document.getElementById('t');if(t)t.value=dep;}\n"+
+"  var go=document.getElementById('rapply');if(go)go.click();\n"+
+"  var out=document.getElementById('rparseOut');\n"+
+"  if(out){var fn=rf&&rf.options[rf.selectedIndex]?rf.options[rf.selectedIndex].text:fk;var tn=rt&&rt.options[rt.selectedIndex]?rt.options[rt.selectedIndex].text:tk;out.textContent='Built '+fn+' to '+tn+(east?' · east-about':west?' · west-about':'');}\n"+
+"}\n"+
+"var btn=document.getElementById('rparse');if(btn)btn.onclick=parsePrompt;\n"+
+"})();</scr"+"ipt>";
 fetch("https://cdn.jsdelivr.net/gh/MonkeyScience/iMagellan@d367c87594740177f7ddbb664b005b65a835b40e/index.html",{cache:"no-store"})
 .then(function(r){if(!r.ok)throw new Error(r.status);return r.text();})
 .then(function(html){
@@ -22,17 +46,16 @@ fetch("https://cdn.jsdelivr.net/gh/MonkeyScience/iMagellan@d367c87594740177f7ddb
       '<button class="go" id="rparse">Build from prompt</button>'+
       '<p id="rparseOut" class="note">Names, side of Jersey/Minquiers, and a leave time are read from the sentence.</p>'+
       '<h2>Or build it</h2>');
-  html=html.replace('</body>','<script>(function(){\n'+ 
-    'var ALIAS={spp:["spp","st peter","peter port","guernsey","st james","st. james"],sark:["sark"],helier:["helier","st helier","jersey"],sablons:["sablons","st malo","st-malo","stmalo","saint malo"],granville:["granville"],carteret:["carteret"]};\n'+
-    'function findPort(s,which){var hit=null,idx=which==="from"?999:-1;Object.keys(ALIAS).forEach(function(k){ALIAS[k].forEach(function(a){var i=s.indexOf(a);if(i<0)return;if(which==="from"&&(hit===null||i<idx)){hit=k;idx=i;}if(which==="to"&&i>idx){hit=k;idx=i;}});});return hit;}\n'+
-    'function parsePrompt(){\n'+
-    '  var s=(document.getElementById("rprompt").value||"").toLowerCase();\n'+
-    '  var fk=findPort(s,"from")||"spp",tk=findPort(s,"to");if(!tk||tk===fk)tk="sablons";\n'+
-    '  var east=/east[- ]?about|east of jersey|east of the minquiers/.test(s);\n'+
-    '  var west=/west[- ]?about|west of jersey|west of the minquiers/.test(s);\n'+
-    '  document.getElementById("rfrom").value=fk;document.getElementById("rto").value=tk;\n'+
-    '  document.getElementById("vRuss").checked=!/avoid russell|skip russell/.test(s);\n'+
-    '  document.getElementById("vWJer").checked=!east;\n'+
-    '  document.getElementById("vWMin").checked=!east;\n'+
-    '  document.getElementById("vEJer").checked=east&&!west;\n'+
-    '  var lm=s.match(/leav\\w*\\s+(?:at\\s+)?(\\d{1,2})(?:[:.](\\d{2}))?/);
+  html=html.replace('</body>',patch+'</body>');
+  document.open();
+  document.write(html);
+  document.close();
+})
+.catch(function(){
+  document.body.style.cssText="color:#eef4fa;font-family:system-ui;padding:24px";
+  document.body.textContent="Failed to load iMagellan. Hard-refresh.";
+});
+})();
+</script>
+</body>
+</html>
