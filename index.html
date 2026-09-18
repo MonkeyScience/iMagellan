@@ -27,7 +27,7 @@ html,body{height:100%;background:#071018;color:#eef4fa;font-family:system-ui,san
 .hours button{background:#1c2a36;color:#cfe3f4;border:0;border-radius:10px;padding:6px 8px;font-size:11px;font-weight:700;white-space:nowrap}
 .ctrl{display:flex;align-items:center;gap:8px;margin:3px 0;font-size:12px;color:#9bb0c3}
 .ctrl b{color:#e6b35a;min-width:48px}
-.ctrl select{background:#1c2a36;color:#eef4fa;border:0;border-radius:8px;padding:4px 6px}
+.ctrl select,.field input,.field select{background:#1c2a36;color:#eef4fa;border:0;border-radius:8px;padding:6px 8px}
 input[type=range]{flex:1;accent-color:#2dd4bf}
 .chips{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11px;color:#cfe3f4}
 .note{font-size:10px;color:#7a8ea3;margin-top:2px}
@@ -44,6 +44,10 @@ input[type=range]{flex:1;accent-color:#2dd4bf}
 canvas.tg{width:100%;height:120px;background:#101820;border-radius:10px;margin:8px 0}
 canvas.wg{width:100%;height:168px;background:#101820;border-radius:10px;margin:8px 0}
 .ok{color:#34d399}.no{color:#fb7185}
+.field{display:flex;flex-direction:column;gap:4px;margin:8px 0;font-size:12px;color:#9bb0c3}
+.field input,.field select{width:100%}
+.checks{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:13px;color:#cfe3f4}
+.go{background:#115e59;color:#fff;border:0;border-radius:10px;padding:10px 12px;font-weight:800;width:100%;margin:8px 0}
 </style></head>
 <body>
 <div id="app">
@@ -71,7 +75,7 @@ canvas.wg{width:100%;height:168px;background:#101820;border-radius:10px;margin:8
 <select id="ccol"><option value="orange">Currents orange</option><option value="teal">Teal / pink</option><option value="blue">Blue</option></select>
 </div>
 <div class="chips"><label><input type="checkbox" id="follow"/> Follow GPS</label><span id="gpsstat">GPS off — tap GPS</span></div>
-<div class="note">Vector coast + shafts stay on every map. Not a chart.</div>
+<div class="note">Stream fades through slack. Not a chart.</div>
 </div></div>
 <div id="view-tides" class="page">
 <h2>Tides at <span id="tideClock">--</span></h2>
@@ -93,13 +97,27 @@ canvas.wg{width:100%;height:168px;background:#101820;border-radius:10px;margin:8
 <div><b>Naye lock (info)</b><span id="lock">--</span></div>
 <div><b>Stream</b><span id="portStr">--</span></div>
 </div>
-<p>Green band = open. Gold = Time. White = ETA. Sablons VHF 9. Victoria VHF 12/16. Lock not used for Sablons.</p>
-<p>Briefing only. Not a chart and not pilotage.</p>
+<p>Green = open. Gold = Time. White = ETA. Briefing only.</p>
+</div>
+<div id="view-routes" class="page">
+<h2>Route</h2>
+<div class="field">Name<input id="rname" value="SPP to Sablons"/></div>
+<div class="field">From<select id="rfrom"></select></div>
+<div class="field">To<select id="rto"></select></div>
+<div class="checks">
+<label><input type="checkbox" id="vRuss" checked/> Little Russell</label>
+<label><input type="checkbox" id="vWJer" checked/> West of Jersey</label>
+<label><input type="checkbox" id="vWMin" checked/> West of Minquiers</label>
+<label><input type="checkbox" id="vEJer"/> East of Jersey</label>
+</div>
+<button class="go" id="rapply">Use this route</button>
+<p id="rsum">Default: St Peter Port → Les Sablons west of Jersey and Minquiers.</p>
 </div>
 <div id="nav">
 <button class="on" data-p="map">Map</button>
 <button data-p="tides">Tides</button>
 <button data-p="ports">Ports</button>
+<button data-p="routes">Route</button>
 </div>
 </div>
 <script>
@@ -108,18 +126,19 @@ const LON0=-2.78,LON1=-1.88,LAT0=48.54,LAT1=49.56;
 const LAND=[
 [[-2.67,49.50],[-2.52,49.51],[-2.50,49.49],[-2.525,49.42],[-2.66,49.44],[-2.70,49.47]],
 [[-2.25,49.26],[-2.01,49.26],[-2.02,49.18],[-2.20,49.17],[-2.27,49.23]],
-[[-2.34,49.03],[-2.00,49.02],[-1.98,48.90],[-2.28,48.90]],
-[[-2.40,48.62],[-1.90,48.69],[-1.88,48.55],[-2.40,48.55]]
+[[-2.34,49.03],[-2.00,49.02],[-1.98,48.90],[-2.28,48.90]]
 ];
 const HAZ=[[-2.28,48.97,"Minquiers"],[-2.12,49.29,"Écréhous"],[-2.48,49.43,"Little Russell"]];
 const STN=[[-2.50,49.43,1.4],[-2.52,49.34,1.1],[-2.36,49.20,1.0],[-2.28,48.97,1.6],[-2.12,48.74,1.2],[-2.04,48.66,0.8]];
-const WPS=[[-2.5233,49.4567],[-2.528,49.422],[-2.45,49.30],[-2.40,49.18],[-2.383,48.995],[-2.267,48.85],[-2.08,48.72],[-2.032,48.68],[-2.0285,48.6407]];
+const PORTS={spp:{n:"St Peter Port",p:[-2.5233,49.4567]},sark:{n:"Sark",p:[-2.35,49.43]},helier:{n:"St Helier",p:[-2.12,49.18]},sablons:{n:"Les Sablons",p:[-2.0285,48.6407]},granville:{n:"Granville",p:[-1.60,48.835]},carteret:{n:"Carteret",p:[-1.80,49.375]}};
+let WPS=[[-2.5233,49.4567],[-2.528,49.422],[-2.45,49.30],[-2.40,49.18],[-2.383,48.995],[-2.267,48.85],[-2.08,48.72],[-2.032,48.68],[-2.0285,48.6407]];
+let FROMN="St Peter Port", TON="Les Sablons", CUM=[0], TOTAL=0;
 function nmBetween(a,b){return Math.hypot((b[1]-a[1])*60,(b[0]-a[0])*60*Math.cos((a[1]+b[1])*Math.PI/360));}
 function cogBetween(a,b){return (Math.atan2(b[0]-a[0], b[1]-a[1])*180/Math.PI+360)%360;}
-const CUM=[0]; for(let i=1;i<WPS.length;i++) CUM.push(CUM[i-1]+nmBetween(WPS[i-1],WPS[i]));
-const TOTAL=CUM[CUM.length-1];
+function rebuildTrack(){ CUM=[0]; for(let i=1;i<WPS.length;i++) CUM.push(CUM[i-1]+nmBetween(WPS[i-1],WPS[i])); TOTAL=CUM[CUM.length-1]; }
+rebuildTrack();
 function posAt(nm){nm=Math.max(0,Math.min(TOTAL,nm)); let i=0; while(i<CUM.length-2 && CUM[i+1]<nm) i++; const t=CUM[i+1]===CUM[i]?0:(nm-CUM[i])/(CUM[i+1]-CUM[i]); return {lon:WPS[i][0]+t*(WPS[i+1][0]-WPS[i][0]), lat:WPS[i][1]+t*(WPS[i+1][1]-WPS[i][1]), cog:cogBetween(WPS[i],WPS[i+1])};}
-function placeAt(nm){if(nm<3)return"St Peter Port"; if(nm<18)return"South of Guernsey"; if(nm<32)return"West of Jersey"; if(nm<48)return"West of Minquiers"; return"Les Sablons";}
+function placeAt(nm){ if(nm<2) return FROMN; if(nm>TOTAL-2) return TON; return "On passage"; }
 const SNAP=[{min:360,tws:9.5,twd:285,gust:12,hs:1.46},{min:480,tws:10.2,twd:270,gust:13,hs:1.45},{min:610,tws:11,twd:268,gust:14,hs:1.44},{min:720,tws:12.7,twd:249,gust:15.6,hs:1.42},{min:780,tws:16.2,twd:260,gust:20,hs:1.4},{min:840,tws:16.8,twd:245,gust:20.8,hs:1.38},{min:900,tws:17.9,twd:250,gust:21.9,hs:1.36},{min:1020,tws:19.2,twd:265,gust:23.8,hs:1.32}];
 const COLS={orange:{f:"251,146,60",e:"234,88,12",s:"253,186,116"},teal:{f:"45,212,191",e:"251,113,133",s:"148,163,184"},blue:{f:"56,189,248",e:"37,99,235",s:"147,197,253"}};
 const SPP=[[304,3.4],[670,7.3],[1045,3.6],[1407,6.9],[1775,4.0],[2150,6.7]];
@@ -132,9 +151,15 @@ function nowMin(){const d=new Date();return d.getHours()*60+d.getMinutes();}
 function inLand(lo,la){return(lo>-2.68&&lo<-2.50&&la>49.42&&la<49.51)||(lo>-2.25&&lo<-2.02&&la>49.17&&la<49.26)||(lo>-2.32&&lo<-1.98&&la>48.90&&la<49.03)||la<48.64;}
 function spawn(){let lo,la,n=0;do{lo=LON0+Math.random()*(LON1-LON0);la=LAT0+Math.random()*(LAT1-LAT0);n++;}while(inLand(lo,la)&&n<40);return{lon:lo,lat:la,age:Math.random()*80};}
 function stateAt(min){const src=LIVE||SNAP; let i=0; while(i<src.length-2 && src[i+1].min<min) i++; const A=src[i],B=src[i+1]||A,t=(min-A.min)/Math.max(1,(B.min||A.min+60)-A.min); const lerp=(a,b)=>a+(b-a)*t; return {tws:lerp(A.tws,B.tws), twd:wrap(A.twd+(((B.twd-A.twd+540)%360)-180)*t), gust:lerp(A.gust||A.tws+3,B.gust||B.tws+3), hs:lerp(A.hs,B.hs)};}
-function streamAt(min){const age=(min-670)/60; const flood=age<0; const kn=Math.max(0.12,1.7*Math.abs(Math.cos(Math.PI*age/6.2))); return {kn:kn, dir:flood?155:335, phase:Math.abs(age)<0.55?"slack":(flood?"flood":"ebb")};}
+function streamAt(min){
+  const hw=670, half=6.21*60;
+  const signed=1.65*Math.sin(Math.PI*(min-hw)/half);
+  const kn=Math.abs(signed);
+  const flood=signed<0;
+  return {kn:kn, signed:signed, dir:flood?155:335, phase:kn<0.28?"slack":(flood?"flood":"ebb")};
+}
 function bsp(tws){ if(tws<6)return 3.2; if(tws<10)return 4.8; if(tws<14)return 5.9; if(tws<18)return 6.5; return 6.0; }
-function sogAt(min,cog){const st=stateAt(min), s=streamAt(min); return {sog:Math.max(2.3, bsp(st.tws)+s.kn*Math.cos((s.dir-cog)*Math.PI/180)), st:st, s:s};}
+function sogAt(min,cog){const st=stateAt(min), s=streamAt(min); return {sog:Math.max(2.3, bsp(st.tws)+s.signed*Math.cos((155-cog)*Math.PI/180)), st:st, s:s};}
 function buildTable(dep){const rows=[{min:dep,nm:0}]; let nm=0; for(let m=dep;m<dep+16*60 && nm<TOTAL;m+=5){const p=posAt(nm); nm=Math.min(TOTAL, nm+sogAt(m,p.cog).sog*(5/60)); rows.push({min:m+5,nm:nm});} return rows;}
 function nmAt(min,dep){if(!TABLE||TABDEP!==dep){TABLE=buildTable(dep);TABDEP=dep;} if(min<=dep)return 0; let i=0; while(i<TABLE.length-2 && TABLE[i+1].min<min) i++; const A=TABLE[i],B=TABLE[i+1]||A,t=(min-A.min)/Math.max(1,(B.min-A.min)||1); return A.nm+(B.nm-A.nm)*t;}
 function etaMin(dep){if(!TABLE||TABDEP!==dep){TABLE=buildTable(dep);TABDEP=dep;} const hit=TABLE.find(function(r){return r.nm>=TOTAL-0.05;}); return hit?hit.min:dep+16*60;}
@@ -159,8 +184,8 @@ function drawTiles(){
   const z=Math.max(8, Math.min(13, Math.round(8+cam.z*1.6)));
   const x0=lon2x(cam.lon-(LON1-LON0)/(2*cam.z), z), x1=lon2x(cam.lon+(LON1-LON0)/(2*cam.z), z);
   const y0=lat2y(cam.lat+(LAT1-LAT0)/(2*cam.z), z), y1=lat2y(cam.lat-(LAT1-LAT0)/(2*cam.z), z);
-  for(let x=Math.floor(x0); x<=Math.floor(x1); x++){
-    for(let y=Math.floor(y0); y<=Math.floor(y1); y++){
+  for(let x=Math.floor(x0)-1; x<=Math.floor(x1)+1; x++){
+    for(let y=Math.floor(y0)-1; y<=Math.floor(y1)+1; y++){
       const key=mapStyle+"/"+z+"/"+x+"/"+y; let im=tileCache[key];
       if(!im){ im=new Image(); im.crossOrigin="anonymous"; im.onload=function(){dirty=true;}; im.src=tileUrl(z,x,y); tileCache[key]=im; }
       if(!im.complete||!im.naturalWidth) continue;
@@ -176,24 +201,23 @@ function halo(txt,x,y){ bctx.strokeStyle="rgba(0,0,0,0.7)"; bctx.lineWidth=3; bc
 function drawLand(){
   LAND.forEach(function(p,i){
     bctx.beginPath(); p.forEach(function(q,k){k?bctx.lineTo(X(q[0]),Y(q[1])):bctx.moveTo(X(q[0]),Y(q[1]));}); bctx.closePath();
-    if(mapStyle==="vector"){ bctx.fillStyle=i===2?"#3a3324":(i===3?"#3a2c22":"#1c2e24"); bctx.fill(); }
-    else if(i===2){ bctx.fillStyle="rgba(255,180,60,0.18)"; bctx.fill(); }
-    bctx.strokeStyle=i===2?"#fbbf24":"#e2e8f0"; bctx.lineWidth=i===2?2:1.4; bctx.stroke();
+    if(mapStyle==="vector"){ bctx.fillStyle=i===2?"#3a3324":"#1c2e24"; bctx.fill(); bctx.strokeStyle=i===2?"#fbbf24":"#e2e8f0"; bctx.lineWidth=i===2?2:1.2; bctx.stroke(); }
+    else if(i===2){ bctx.fillStyle="rgba(255,180,60,0.18)"; bctx.fill(); bctx.strokeStyle="#fbbf24"; bctx.lineWidth=2; bctx.stroke(); }
   });
 }
 function drawShafts(s){
-  const rgb=s.phase==="flood"?"251,146,60":(s.phase==="ebb"?"234,88,12":"253,186,116");
+  if(s.kn<0.16) return;
   const col=COLS[document.getElementById("ccol").value]||COLS.orange;
   const use=s.phase==="flood"?col.f:(s.phase==="ebb"?col.e:col.s);
   STN.forEach(function(st){
-    const kn=s.kn*st[2], rad=s.dir*Math.PI/180, len=18+kn*16;
+    const kn=s.kn*st[2], rad=s.dir*Math.PI/180, len=6+kn*20;
     const x=X(st[0]), y=Y(st[1]);
     const x2=x+Math.sin(rad)*len, y2=y-Math.cos(rad)*len;
     bctx.strokeStyle="rgba(0,0,0,0.55)"; bctx.lineWidth=6; bctx.lineCap="round";
     bctx.beginPath(); bctx.moveTo(x,y); bctx.lineTo(x2,y2); bctx.stroke();
     bctx.strokeStyle="rgb("+use+")"; bctx.lineWidth=3.4;
     bctx.beginPath(); bctx.moveTo(x,y); bctx.lineTo(x2,y2); bctx.stroke();
-    const hx=x2+Math.sin(rad+2.6)*8, hy=y2-Math.cos(rad+2.6)*8, hx2=x2+Math.sin(rad-2.6)*8, hy2=y2-Math.cos(rad-2.6)*8;
+    const hx=x2+Math.sin(rad+2.6)*7, hy=y2-Math.cos(rad+2.6)*7, hx2=x2+Math.sin(rad-2.6)*7, hy2=y2-Math.cos(rad-2.6)*7;
     bctx.beginPath(); bctx.moveTo(hx,hy); bctx.lineTo(x2,y2); bctx.lineTo(hx2,hy2); bctx.stroke();
     bctx.font="bold 11px sans-serif"; bctx.textAlign="left"; halo(kn.toFixed(1), x2+6, y2-4);
   });
@@ -276,12 +300,32 @@ function tick(){
   for(let i=0;i<P.length;i++){const p=P[i],x0=X(p.lon),y0=Y(p.lat); p.lon+=Math.sin(to)*step; p.lat+=Math.cos(to)*step; p.age++; if(p.age>90||inLand(p.lon,p.lat)){Object.assign(p,spawn());continue;} fctx.strokeStyle="rgba(255,255,255,"+(0.14+0.45*(1-p.age/90))+")"; fctx.beginPath(); fctx.moveTo(x0,y0); fctx.lineTo(X(p.lon),Y(p.lat)); fctx.stroke();}
   const col=COLS[document.getElementById("ccol").value]||COLS.orange;
   const rgb=g.s.phase==="flood"?col.f:(g.s.phase==="ebb"?col.e:col.s);
-  const cd=g.s.dir*Math.PI/180, cs=0.00038*g.s.kn;
+  const cd=g.s.dir*Math.PI/180, cs=0.00042*g.s.kn;
   fctx.lineWidth=2.2;
-  for(let i=0;i<C.length;i++){const p=C[i],x0=X(p.lon),y0=Y(p.lat); p.lon+=Math.sin(cd)*cs; p.lat+=Math.cos(cd)*cs; p.age++; if(p.age>110||inLand(p.lon,p.lat)){Object.assign(p,spawn());continue;} fctx.strokeStyle="rgba("+rgb+","+(0.35+0.5*(1-p.age/110))+")"; fctx.beginPath(); fctx.moveTo(x0,y0); fctx.lineTo(X(p.lon),Y(p.lat)); fctx.stroke();}
+  for(let i=0;i<C.length;i++){const p=C[i],x0=X(p.lon),y0=Y(p.lat); p.lon+=Math.sin(cd)*cs; p.lat+=Math.cos(cd)*cs; p.age++; if(p.age>110||inLand(p.lon,p.lat)||g.s.kn<0.16){Object.assign(p,spawn());continue;} fctx.strokeStyle="rgba("+rgb+","+(0.35+0.5*(1-p.age/110))+")"; fctx.beginPath(); fctx.moveTo(x0,y0); fctx.lineTo(X(p.lon),Y(p.lat)); fctx.stroke();}
   requestAnimationFrame(tick);
 }
 function rebuildHours(dep){const box=document.getElementById("hours"); box.innerHTML=""; [dep,dep+60,dep+180,dep+360,etaMin(dep)].forEach(function(m,i){const labs=["Dep","+1h","+3h","+6h","ETA"]; const b=document.createElement("button"); b.textContent=labs[i]+" "+hhmm(m); b.onclick=function(){dropFollow(); document.getElementById("t").value=m; dirty=true;}; box.appendChild(b);});}
+function applyRoute(){
+  const a=PORTS[document.getElementById("rfrom").value], b=PORTS[document.getElementById("rto").value];
+  FROMN=a.n; TON=b.n;
+  const pts=[a.p.slice()];
+  if(document.getElementById("vRuss").checked) pts.push([-2.528,49.422]);
+  if(document.getElementById("vWJer").checked){ pts.push([-2.45,49.30],[-2.40,49.18]); }
+  if(document.getElementById("vEJer").checked){ pts.push([-2.05,49.29],[-2.00,49.22]); }
+  if(document.getElementById("vWMin").checked){ pts.push([-2.383,48.995],[-2.267,48.85]); }
+  pts.push(b.p.slice());
+  WPS=pts; rebuildTrack(); TABLE=null; TABDEP=-1;
+  document.getElementById("rname").value=FROMN+" to "+TON;
+  document.getElementById("rsum").textContent=FROMN+" → "+TON+" · "+TOTAL.toFixed(1)+" nm · "+WPS.length+" wpts";
+  rebuildHours(+document.getElementById("dep").value); dirty=true;
+}
+(function fillPorts(){
+  const f=document.getElementById("rfrom"), t=document.getElementById("rto");
+  Object.keys(PORTS).forEach(function(k){ const o=document.createElement("option"); o.value=k; o.textContent=PORTS[k].n; f.appendChild(o); t.appendChild(o.cloneNode(true)); });
+  f.value="spp"; t.value="sablons";
+})();
+document.getElementById("rapply").onclick=applyRoute;
 document.getElementById("dep").addEventListener("input",function(){dropFollow(); TABDEP=-1;TABLE=null;rebuildHours(+this.value);dirty=true;});
 document.getElementById("t").addEventListener("input",function(){dropFollow(); dirty=true;});
 document.getElementById("follow").addEventListener("change",function(){ if(this.checked){ if(!GPS){ document.getElementById("gpsstat").textContent="turn GPS on first"; this.checked=false; return;} snapFollow(); document.getElementById("gpsstat").textContent="following "+GPS.lat.toFixed(3)+"N"; } else document.getElementById("gpsstat").textContent=GPS?"fix parked":"GPS off — tap GPS"; });
@@ -301,8 +345,8 @@ let drag=null;
 bg.addEventListener("pointerdown",function(ev){drag={x:ev.clientX,y:ev.clientY,lon:cam.lon,lat:cam.lat};});
 bg.addEventListener("pointerup",function(){drag=null;});
 bg.addEventListener("pointermove",function(ev){if(!drag)return; dropFollow(); const sL=(LON1-LON0)/cam.z,sA=(LAT1-LAT0)/cam.z; cam.lon=drag.lon-(ev.clientX-drag.x)/W*sL; cam.lat=drag.lat+(ev.clientY-drag.y)/H*sA; dirty=true;});
-document.querySelectorAll("#nav button").forEach(function(b){b.onclick=function(){document.querySelectorAll("#nav button").forEach(function(x){x.classList.remove("on");}); b.classList.add("on"); const p=b.dataset.p; document.getElementById("view-map").style.display=p==="map"?"flex":"none"; document.getElementById("view-tides").classList.toggle("on",p==="tides"); document.getElementById("view-ports").classList.toggle("on",p==="ports"); dirty=true; if(p==="map") resize();};});
-async function loadLive(){try{const u="https://api.open-meteo.com/v1/forecast?latitude=49.30&longitude=-2.43&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn&timezone=Europe/London&forecast_days=1"; const w=await (await fetch(u)).json(); const hours=(w.hourly.time||[]).map(function(s,i){const hm=s.split("T")[1].split(":"); return {min:(+hm[0])*60+(+hm[1]||0), tws:w.hourly.wind_speed_10m[i], twd:w.hourly.wind_direction_10m[i], gust:w.hourly.wind_gusts_10m[i], hs:1.4};}); if(hours.length>3){LIVE=hours;TABDEP=-1;TABLE=null;document.getElementById("src").textContent="LIVE wind · labelled shafts";rebuildHours(+document.getElementById("dep").value);dirty=true;}}catch(e){}}
+document.querySelectorAll("#nav button").forEach(function(b){b.onclick=function(){document.querySelectorAll("#nav button").forEach(function(x){x.classList.remove("on");}); b.classList.add("on"); const p=b.dataset.p; document.getElementById("view-map").style.display=p==="map"?"flex":"none"; ["tides","ports","routes"].forEach(function(n){document.getElementById("view-"+n).classList.toggle("on",p===n);}); dirty=true; if(p==="map") resize();};});
+async function loadLive(){try{const u="https://api.open-meteo.com/v1/forecast?latitude=49.30&longitude=-2.43&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn&timezone=Europe/London&forecast_days=1"; const w=await (await fetch(u)).json(); const hours=(w.hourly.time||[]).map(function(s,i){const hm=s.split("T")[1].split(":"); return {min:(+hm[0])*60+(+hm[1]||0), tws:w.hourly.wind_speed_10m[i], twd:w.hourly.wind_direction_10m[i], gust:w.hourly.wind_gusts_10m[i], hs:1.4};}); if(hours.length>3){LIVE=hours;TABDEP=-1;TABLE=null;document.getElementById("src").textContent="LIVE wind · slack-safe stream";rebuildHours(+document.getElementById("dep").value);dirty=true;}}catch(e){}}
 addEventListener("resize",resize);
 document.getElementById("t").value=nowMin();
 rebuildHours(410); resize(); loadLive(); tick();
