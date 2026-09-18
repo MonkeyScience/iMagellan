@@ -1,6 +1,6 @@
 (function(){
 const LAND=[[[-2.67,49.50],[-2.52,49.51],[-2.50,49.49],[-2.525,49.42],[-2.66,49.44],[-2.70,49.47]],[[-2.25,49.26],[-2.01,49.26],[-2.02,49.18],[-2.20,49.17],[-2.27,49.23]],[[-2.34,49.03],[-2.00,49.02],[-1.98,48.90],[-2.28,48.90]],[[-2.38,49.46],[-2.34,49.44],[-2.35,49.40],[-2.38,49.39],[-2.40,49.43]],[[-2.23,49.74],[-2.16,49.74],[-2.16,49.70],[-2.23,49.70]]];
-const FR=[[-1.95,49.73],[-1.80,49.38],[-1.54,48.90],[-1.60,48.835],[-2.05,48.64],[-2.60,48.62]];
+const FR=[[-1.95,49.73],[-1.94,49.56],[-1.86,49.55],[-1.80,49.38],[-1.70,49.22],[-1.54,48.90],[-1.60,48.835],[-1.52,48.70],[-1.85,48.65],[-2.05,48.64],[-2.35,48.64],[-2.60,48.62]];
 const PORTS={spp:{n:"St Peter Port",p:[-2.5233,49.4567]},sablons:{n:"Les Sablons",p:[-2.0285,48.6407]},helier:{n:"St Helier",p:[-2.12,49.18]},sark:{n:"Sark",p:[-2.35,49.43]},alderney:{n:"Alderney",p:[-2.20,49.72]},granville:{n:"Granville",p:[-1.60,48.835]},carteret:{n:"Carteret",p:[-1.80,49.375]},dielette:{n:"Dielette",p:[-1.86,49.551]},cherbourg:{n:"Cherbourg",p:[-1.62,49.65]}};
 let WPS=[[-2.5233,49.4567],[-2.528,49.422],[-2.45,49.30],[-2.40,49.18],[-2.383,48.995],[-2.08,48.72],[-2.0285,48.6407]];
 let CUM=[0],TOTAL=0;
@@ -23,16 +23,19 @@ const tileCache={};
 function mx(lon){return(lon+180)/360;}
 function my(lat){const r=Math.max(-85,Math.min(85,lat))*Math.PI/180;return(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2;}
 function worldPx(){return W*250*cam.z;}
+function visLon(){return 1.44/Math.max(0.25,cam.z);}
 const X=function(lo){return W/2+(mx(lo)-mx(cam.lon))*worldPx();};
 const Y=function(la){return H/2+(my(la)-my(cam.lat))*worldPx();};
 function resize(){const r=wrapEl.getBoundingClientRect(),dpr=Math.min(1.5,devicePixelRatio||1);W=Math.max(160,r.width|0);H=Math.max(180,r.height|0);[bg,fg].forEach(function(c){c.width=W*dpr;c.height=H*dpr;c.style.width=W+"px";c.style.height=H+"px";c.getContext("2d").setTransform(dpr,0,0,dpr,0,0);});dirty=true;}
 function baseUrl(z,x,y){if(mapStyle==="sat")return"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/"+z+"/"+y+"/"+x;if(mapStyle==="streets")return"https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/"+z+"/"+y+"/"+x;return"https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/"+z+"/"+y+"/"+x;}
 function loadTile(key,url){let im=tileCache[key];if(!im){im=new Image();im.crossOrigin="anonymous";im.onload=function(){dirty=true;};im.src=url;tileCache[key]=im;}return im;}
+function viewBounds(){const sl=visLon(),sa=sl*(H/Math.max(1,W))/Math.max(0.35,Math.cos(cam.lat*Math.PI/180));return{w:cam.lon-sl/2,e:cam.lon+sl/2,s:cam.lat-sa/2,n:cam.lat+sa/2};}
 function paint(){
   bctx.fillStyle="#0a4a58";bctx.fillRect(0,0,W,H);
   const z=Math.max(5,Math.min(16,Math.round(Math.log2(Math.max(64,worldPx()/256)))));
   const lim=Math.pow(2,z);
-  const x0=mx(cam.lon-1.2)*lim,x1=mx(cam.lon+1.2)*lim,y0=my(cam.lat+0.7)*lim,y1=my(cam.lat-0.7)*lim;
+  const b=viewBounds();
+  const x0=mx(b.w)*lim,x1=mx(b.e)*lim,y0=my(b.n)*lim,y1=my(b.s)*lim;
   for(let x=Math.floor(x0)-1;x<=Math.floor(x1)+1;x++){
     for(let y=Math.floor(y0)-1;y<=Math.floor(y1)+1;y++){
       const xx=((x%lim)+lim)%lim;
@@ -45,8 +48,25 @@ function paint(){
       bctx.drawImage(im,X(west),Y(north),X(east)-X(west),Y(south)-Y(north));
     }
   }
+  if(document.getElementById("seams")&&document.getElementById("seams").checked){
+    const zs=Math.max(9,z);
+    const lims=Math.pow(2,zs);
+    const xs0=mx(b.w)*lims,xs1=mx(b.e)*lims,ys0=my(b.n)*lims,ys1=my(b.s)*lims;
+    for(let x=Math.floor(xs0)-1;x<=Math.floor(xs1)+1;x++){
+      for(let y=Math.floor(ys0)-1;y<=Math.floor(ys1)+1;y++){
+        const xx=((x%lims)+lims)%lims;
+        const im=loadTile("sea/"+zs+"/"+xx+"/"+y,"https://tiles.openseamap.org/seamark/"+zs+"/"+xx+"/"+y+".png");
+        if(!im.complete||!im.naturalWidth)continue;
+        const west=xx/lims*360-180,east=(xx+1)/lims*360-180;
+        const n=Math.PI-2*Math.PI*y/lims,s=Math.PI-2*Math.PI*(y+1)/lims;
+        const north=180/Math.PI*Math.atan(0.5*(Math.exp(n)-Math.exp(-n)));
+        const south=180/Math.PI*Math.atan(0.5*(Math.exp(s)-Math.exp(-s)));
+        bctx.drawImage(im,X(west),Y(north),X(east)-X(west),Y(south)-Y(north));
+      }
+    }
+  }
   LAND.forEach(function(p,i){bctx.beginPath();p.forEach(function(q,k){k?bctx.lineTo(X(q[0]),Y(q[1])):bctx.moveTo(X(q[0]),Y(q[1]));});bctx.closePath();bctx.strokeStyle=i===2?"#fbbf24":"#e2e8f0";bctx.lineWidth=i===2?2:1.1;bctx.stroke();});
-  bctx.beginPath();FR.forEach(function(q,k){k?bctx.lineTo(X(q[0]),Y(q[1])):bctx.moveTo(X(q[0]),Y(q[1]));});bctx.strokeStyle="rgba(226,232,240,0.7)";bctx.stroke();
+  bctx.beginPath();FR.forEach(function(q,k){k?bctx.lineTo(X(q[0]),Y(q[1])):bctx.moveTo(X(q[0]),Y(q[1]));});bctx.strokeStyle="rgba(226,232,240,0.85)";bctx.lineWidth=1.2;bctx.stroke();
   bctx.setLineDash([7,5]);bctx.strokeStyle="#e6b35a";bctx.lineWidth=2.2;bctx.beginPath();
   WPS.forEach(function(p,i){i?bctx.lineTo(X(p[0]),Y(p[1])):bctx.moveTo(X(p[0]),Y(p[1]));});bctx.stroke();bctx.setLineDash([]);
   const dep=+document.getElementById("dep").value,wall=+document.getElementById("t").value;
@@ -55,7 +75,7 @@ function paint(){
   const boat=posAt(frac*TOTAL);
   bctx.fillStyle="#fbbf24";bctx.beginPath();bctx.arc(X(boat.lon),Y(boat.lat),6,0,6.3);bctx.fill();
   bctx.fillStyle="#fff";bctx.font="bold 12px sans-serif";bctx.textAlign="center";
-  [["Guernsey",-2.58,49.46],["Jersey",-2.12,49.21],["Sablons",-2.02,48.655]].forEach(function(a){bctx.fillText(a[0],X(a[1]),Y(a[2]));});
+  [["Guernsey",-2.58,49.46],["Jersey",-2.12,49.21],["Sablons",-2.02,48.655],["France",-1.72,49.10]].forEach(function(a){bctx.fillText(a[0],X(a[1]),Y(a[2]));});
 }
 function tick(){
   cam.z=+document.getElementById("z").value/10;
@@ -102,23 +122,42 @@ if(document.getElementById("rapply"))document.getElementById("rapply").onclick=f
   document.getElementById("rsum").textContent=A.n+" to "+B.n+" · "+TOTAL.toFixed(1)+" nm";
   cam.lon=(A.p[0]+B.p[0])/2;cam.lat=(A.p[1]+B.p[1])/2;dirty=true;
 };
-let drag=null;
-wrapEl.addEventListener("pointerdown",function(ev){drag={x:ev.clientX,y:ev.clientY,lon:cam.lon,lat:cam.lat};wrapEl.setPointerCapture(ev.pointerId);});
-wrapEl.addEventListener("pointerup",function(){drag=null;});
+const ptrs=new Map();
+let drag=null,pinch=null;
+function ptrDist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+wrapEl.addEventListener("pointerdown",function(ev){
+  wrapEl.setPointerCapture(ev.pointerId);
+  ptrs.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+  if(ptrs.size===2){const pts=[...ptrs.values()];pinch={d0:Math.max(24,ptrDist(pts[0],pts[1])),z0:cam.z};drag=null;}
+  else drag={x:ev.clientX,y:ev.clientY,lon:cam.lon,lat:cam.lat};
+});
+function endPtr(ev){ptrs.delete(ev.pointerId);if(ptrs.size<2)pinch=null;if(ptrs.size===0)drag=null;}
+wrapEl.addEventListener("pointerup",endPtr);
+wrapEl.addEventListener("pointercancel",endPtr);
 wrapEl.addEventListener("pointermove",function(ev){
+  if(!ptrs.has(ev.pointerId))return;
+  ptrs.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+  if(pinch&&ptrs.size>=2){
+    const pts=[...ptrs.values()];
+    const d=Math.max(24,ptrDist(pts[0],pts[1]));
+    cam.z=Math.max(0.4,Math.min(8,pinch.z0*(d/pinch.d0)));
+    document.getElementById("z").value=Math.round(cam.z*10);
+    dirty=true;return;
+  }
   if(!drag)return;
-  const sl=2.4/Math.max(0.25,cam.z), sa=sl*(H/Math.max(1,W))/Math.max(0.35,Math.cos(cam.lat*Math.PI/180));
+  const sl=visLon(),sa=sl*(H/Math.max(1,W))/Math.max(0.35,Math.cos(cam.lat*Math.PI/180));
   cam.lon=drag.lon-(ev.clientX-drag.x)/W*sl;
   cam.lat=Math.max(-80,Math.min(80,drag.lat+(ev.clientY-drag.y)/H*sa));
   dirty=true;
 });
+wrapEl.addEventListener("wheel",function(ev){ev.preventDefault();const z=document.getElementById("z");z.value=Math.max(4,Math.min(80,+z.value+(ev.deltaY<0?3:-3)));dirty=true;},{passive:false});
 addEventListener("resize",resize);
 document.getElementById("t").value=nowMin();
 rebuildHours(410);resize();tick();
-document.getElementById("src").textContent="Map restored";
+document.getElementById("src").textContent="Map tiles · pinch on";
 fetch("https://api.open-meteo.com/v1/forecast?latitude=49.30&longitude=-2.43&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn&timezone=Europe%2FLondon&forecast_days=1")
   .then(function(r){return r.json();}).then(function(w){
     LIVE=(w.hourly.time||[]).map(function(s,i){const hm=s.split("T")[1].split(":");return{min:(+hm[0])*60+(+hm[1]||0),tws:w.hourly.wind_speed_10m[i],twd:w.hourly.wind_direction_10m[i],gust:w.hourly.wind_gusts_10m[i]};});
-    document.getElementById("src").textContent="LIVE wind";dirty=true;
+    document.getElementById("src").textContent="LIVE wind · full tiles";dirty=true;
   }).catch(function(){});
 })();
