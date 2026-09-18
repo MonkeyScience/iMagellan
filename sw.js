@@ -1,4 +1,4 @@
-const CACHE="imagellan-v4";
+const CACHE="imagellan-d367";
 const PRE=["./","./index.html","./manifest.webmanifest","./icon.svg"];
 self.addEventListener("install",e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(PRE)).then(()=>self.skipWaiting()));
@@ -13,12 +13,10 @@ self.addEventListener("fetch",e=>{
     return;
   }
   e.respondWith(
-    fetch(e.request).then(res=>{
-      if(res && res.ok){
-        const copy=res.clone();
-        caches.open(CACHE).then(c=>c.put(e.request,copy));
-      }
+    caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{
+      const copy=res.clone();
+      caches.open(CACHE).then(c=>c.put(e.request,copy));
       return res;
-    }).catch(()=>caches.match(e.request).then(r=>r||caches.match("./index.html")))
+    }).catch(()=>caches.match("./index.html")))
   );
 });
