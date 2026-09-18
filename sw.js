@@ -1,4 +1,4 @@
-const CACHE="imagellan-v3";
+const CACHE="imagellan-v4";
 const PRE=["./","./index.html","./manifest.webmanifest","./icon.svg"];
 self.addEventListener("install",e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(PRE)).then(()=>self.skipWaiting()));
