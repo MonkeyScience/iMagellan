@@ -33,6 +33,13 @@ async def wx(lat: float = Query(49.30), lon: float = Query(-2.43)):
     except Exception as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=502)
 
+@app.get("/app.js")
+def app_js():
+    f = ROOT / "app.js"
+    if f.exists():
+        return FileResponse(f, media_type="application/javascript")
+    return JSONResponse({"ok": False, "error": "app.js missing"}, status_code=404)
+
 @app.get("/")
 def root():
     page = ROOT / "index.html"
