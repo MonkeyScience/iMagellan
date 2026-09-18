@@ -15,19 +15,18 @@ var patch = "<scr"+"ipt>(function(){\n"+
 "function findPort(s,which){var hit=null,idx=which==='from'?999:-1;Object.keys(ALIAS).forEach(function(k){ALIAS[k].forEach(function(a){var i=s.indexOf(a);if(i<0)return;if(which==='from'&&(hit===null||i<idx)){hit=k;idx=i;}if(which==='to'&&i>idx){hit=k;idx=i;}});});return hit;}\n"+
 "function parsePrompt(){\n"+
 "  var box=document.getElementById('rprompt');if(!box)return;\n"+
-"  var raw=(box.value||'').toLowerCase();\n"+
-"  var s=raw.replace(/west[- ]?about/g,' ').replace(/east[- ]?about/g,' ').replace(/west of (the )?(jersey|minquiers)/g,' ').replace(/east of (the )?(jersey|minquiers)/g,' ');\n"+
+"  var s=(box.value||'').toLowerCase();\n"+
 "  var fk=findPort(s,'from')||'spp',tk=findPort(s,'to');if(!tk||tk===fk)tk='sablons';\n"+
-"  var east=/east[- ]?about|east of jersey|east of the minquiers/.test(raw);\n"+
-"  var west=/west[- ]?about|west of jersey|west of the minquiers/.test(raw);\n"+
+"  var east=/east[- ]?about|east of jersey|east of the minquiers/.test(s);\n"+
+"  var west=/west[- ]?about|west of jersey|west of the minquiers/.test(s);\n"+
 "  var rf=document.getElementById('rfrom'),rt=document.getElementById('rto');\n"+
 "  if(rf)rf.value=fk;if(rt)rt.value=tk;\n"+
-"  var r=document.getElementById('vRuss');if(r)r.checked=!/avoid russell|skip russell/.test(raw);\n"+
+"  var r=document.getElementById('vRuss');if(r)r.checked=!/avoid russell|skip russell/.test(s);\n"+
 "  var wj=document.getElementById('vWJer');if(wj)wj.checked=!east;\n"+
 "  var wm=document.getElementById('vWMin');if(wm)wm.checked=!east;\n"+
 "  var ej=document.getElementById('vEJer');if(ej)ej.checked=!!east&&!west;\n"+
-"  var lm=raw.match(/leav\\w*\\s+(?:at\\s+)?(\\d{1,2})(?:[:.](\\d{2}))?/);\n"+
-"  if(lm){var dep=(+lm[1])*60+(+(lm[2]||0));var d=document.getElementById('dep');if(d)d.value=dep;var t=document.getElementById('t');if(t)t.value=dep;}\n"+
+"  var lm=s.match(/leaving (\\d{1,2})(?::(\\d{2}))?/)||s.match(/leave (\\d{1,2})(?::(\\d{2}))?/);\n"+
+"  if(lm){var dep=(+lm[1]%24)*60+(+(lm[2]||0));var d=document.getElementById('dep');if(d)d.value=dep;var t=document.getElementById('t');if(t)t.value=dep;}\n"+
 "  var go=document.getElementById('rapply');if(go)go.click();\n"+
 "  var out=document.getElementById('rparseOut');\n"+
 "  if(out){var fn=rf&&rf.options[rf.selectedIndex]?rf.options[rf.selectedIndex].text:fk;var tn=rt&&rt.options[rt.selectedIndex]?rt.options[rt.selectedIndex].text:tk;out.textContent='Built '+fn+' to '+tn+(east?' · east-about':west?' · west-about':'');}\n"+
@@ -46,19 +45,18 @@ fetch("https://cdn.jsdelivr.net/gh/MonkeyScience/iMagellan@d367c87594740177f7ddb
       '<div class="field">Prompt<textarea id="rprompt" rows="3" placeholder="SPP to Sablons west about leaving 07:00">SPP to Sablons west about leaving 07:00</textarea></div>'+
       '<button class="go" id="rparse">Build from prompt</button>'+
       '<p id="rparseOut" class="note">Names, side of Jersey/Minquiers, and a leave time are read from the sentence.</p>'+
-      '<h2>Or build it</h2>')
-    .replace('LIVE=null,GPS=null','LIVE=null,STREAMS=null,GPS=null')
-    .replace(
-      'function streamAt(min){\n  const hw=670, half=6.21*60;\n  const signed=1.65*Math.sin(Math.PI*(min-hw)/half);\n  const kn=Math.abs(signed);\n  const flood=signed<0;\n  return {kn:kn, signed:signed, dir:flood?155:335, phase:kn<0.28?"slack":(flood?"flood":"ebb")};\n}',
-      'function hourAt(st,min){var rows=st.hours||[];if(!rows.length)return null;var i=0;while(i<rows.length-2&&rows[i+1].min<min)i++;var A=rows[i],B=rows[i+1]||A,t=(min-A.min)/Math.max(1,(B.min||A.min+60)-A.min);var dA=+A.dir||0,dB=+B.dir||dA,dd=((dB-dA+540)%360)-180;return {kn:(+A.kn||0)+((+B.kn||0)-(+A.kn||0))*t,dir:((dA+dd*t)+360)%360,sl:(+A.sl||0)+((+B.sl||0)-(+A.sl||0))*t};}\n'+
-      'function liveAt(lon,lat,min){if(!STREAMS||!STREAMS.stations)return null;var best=null,bd=99;STREAMS.stations.forEach(function(st){var d=Math.hypot((st.lon-lon)*0.72,st.lat-lat);if(d<bd){bd=d;best=st;}});if(!best||bd>0.35)return null;var h=hourAt(best,min);if(!h)return null;h.phase=h.kn<0.28?"slack":((h.dir>330||h.dir<90)?"flood":"ebb");h.signed=(h.phase==="flood"?-1:1)*h.kn;return h;}\n'+
-      'function streamAt(min){var live=liveAt(-2.30,49.10,min);if(live)return live;var hw=670,half=6.21*60,signed=1.65*Math.sin(Math.PI*(min-hw)/half),kn=Math.abs(signed),flood=signed<0;return {kn:kn,signed:signed,dir:flood?155:335,phase:kn<0.28?"slack":(flood?"flood":"ebb")};}'
-    )
-    .replace(
-      'STN.forEach(function(st){\n    const kn=s.kn*st[2], rad=s.dir*Math.PI/180, len=6+kn*20;',
-      'STN.forEach(function(st){\n    var loc=liveAt(st[0],st[1],+document.getElementById("t").value);\n    const kn=loc?loc.kn:(s.kn*st[2]), rad=(loc?loc.dir:s.dir)*Math.PI/180, len=6+kn*20;'
-    )
-    .replace('loadLive(); tick();','function loadStreams(){fetch("/api/streams").then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.stations){STREAMS=d;var el=document.getElementById("src");if(el)el.textContent="MODEL · 8 km · station shafts";dirty=true;}}).catch(function(){});}\nloadLive(); loadStreams(); tick();');
+      '<h2>Or build it</h2>');
+  html=html.replace('let LIVE=null','let LIVE=null,CURR=null');
+  html=html.replace(
+    'function streamAt(min){\n  const hw=670, half=6.21*60;\n  const signed=1.65*Math.sin(Math.PI*(min-hw)/half);\n  const kn=Math.abs(signed);\n  const flood=signed<0;\n  return {kn:kn, signed:signed, dir:flood?155:335, phase:kn<0.28?"slack":(flood?"flood":"ebb")};\n}',
+    'function hourRow(rows,min){if(!rows||!rows.length)return null;let i=0;while(i<rows.length-2&&rows[i+1].min<min)i++;const A=rows[i],B=rows[i+1]||A,t=(min-A.min)/Math.max(1,(B.min||A.min+60)-A.min);const kn=(+A.kn||0)+((+B.kn||0)-(+A.kn||0))*t;const dA=+A.dir||0,dB=+(B.dir)||dA;const dir=wrap(dA+((((dB-dA+540)%360)-180)*t));return{kn:kn,dir:dir};}\nfunction streamAt(min,lon,lat){\n  const hw=670, half=6.21*60;\n  const signed=1.65*Math.sin(Math.PI*(min-hw)/half);\n  const kn=Math.abs(signed);\n  const flood=signed<0;\n  const atlas={kn:kn, signed:signed, dir:flood?155:335, phase:kn<0.28?"slack":(flood?"flood":"ebb")};\n  if(!CURR||!CURR.length) return atlas;\n  const lo=lon==null?-2.28:lon, la=lat==null?48.97:lat;\n  let best=null,bd=99;\n  CURR.forEach(function(st){const d=Math.hypot((st.lon-lo)*0.72,st.lat-la);if(d<bd){bd=d;best=st;}});\n  if(!best||bd>0.35) return atlas;\n  const row=hourRow(best.hours,min); if(!row) return atlas;\n  const fl=row.dir<90||row.dir>270;\n  return {kn:row.kn, signed:row.kn*(fl?-1:1), dir:row.dir, phase:row.kn<0.28?"slack":(fl?"flood":"ebb")};\n}'
+  );
+  html=html.replace(
+    'function drawShafts(s){\n  if(s.kn<0.16) return;\n  const col=COLS[document.getElementById("ccol").value]||COLS.orange;\n  const use=s.phase==="flood"?col.f:(s.phase==="ebb"?col.e:col.s);\n  STN.forEach(function(st){\n    const kn=s.kn*st[2], rad=s.dir*Math.PI/180, len=6+kn*20;',
+    'function drawShafts(s){\n  const min=+document.getElementById("t").value;\n  const col=COLS[document.getElementById("ccol").value]||COLS.orange;\n  STN.forEach(function(st){\n    const local=streamAt(min,st[0],st[1]); if(local.kn<0.16) return;\n    const use=local.phase==="flood"?col.f:(local.phase==="ebb"?col.e:col.s);\n    const kn=CURR?local.kn:local.kn*st[2], rad=local.dir*Math.PI/180, len=6+kn*20;'
+  );
+  html=html.replace('loadLive(); tick();','loadLive();loadCurrents(); tick();');
+  html=html.replace('function loadLive()','function loadCurrents(){fetch("/api/streams").then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.stations){CURR=d.stations;var el=document.getElementById("src");if(el)el.textContent="MODEL · 8 km · station shafts";dirty=true;}}).catch(function(){});}\nfunction loadLive()');
   html=html.replace('</body>',patch+'</body>');
   document.open();
   document.write(html);
