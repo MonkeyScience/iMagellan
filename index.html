@@ -46,6 +46,17 @@ fetch("https://cdn.jsdelivr.net/gh/MonkeyScience/iMagellan@d367c87594740177f7ddb
       '<button class="go" id="rparse">Build from prompt</button>'+
       '<p id="rparseOut" class="note">Names, side of Jersey/Minquiers, and a leave time are read from the sentence.</p>'+
       '<h2>Or build it</h2>');
+  html=html.replace('let LIVE=null','let LIVE=null,CURR=null');
+  html=html.replace(
+    'function streamAt(min){\n  const hw=670, half=6.21*60;\n  const signed=1.65*Math.sin(Math.PI*(min-hw)/half);\n  const kn=Math.abs(signed);\n  const flood=signed<0;\n  return {kn:kn, signed:signed, dir:flood?155:335, phase:kn<0.28?"slack":(flood?"flood":"ebb")};\n}',
+    'function hourRow(rows,min){if(!rows||!rows.length)return null;let i=0;while(i<rows.length-2&&rows[i+1].min<min)i++;const A=rows[i],B=rows[i+1]||A,t=(min-A.min)/Math.max(1,(B.min||A.min+60)-A.min);const kn=(+A.kn||0)+((+B.kn||0)-(+A.kn||0))*t;const dA=+A.dir||0,dB=+(B.dir)||dA;const dir=wrap(dA+((((dB-dA+540)%360)-180)*t));return{kn:kn,dir:dir};}\nfunction streamAt(min,lon,lat){\n  const hw=670, half=6.21*60;\n  const signed=1.65*Math.sin(Math.PI*(min-hw)/half);\n  const kn=Math.abs(signed);\n  const flood=signed<0;\n  const atlas={kn:kn, signed:signed, dir:flood?155:335, phase:kn<0.28?"slack":(flood?"flood":"ebb")};\n  if(!CURR||!CURR.length) return atlas;\n  const lo=lon==null?-2.28:lon, la=lat==null?48.97:lat;\n  let best=null,bd=99;\n  CURR.forEach(function(st){const d=Math.hypot((st.lon-lo)*0.72,st.lat-la);if(d<bd){bd=d;best=st;}});\n  if(!best||bd>0.35) return atlas;\n  const row=hourRow(best.hours,min); if(!row) return atlas;\n  const fl=row.dir<90||row.dir>270;\n  return {kn:row.kn, signed:row.kn*(fl?-1:1), dir:row.dir, phase:row.kn<0.28?"slack":(fl?"flood":"ebb")};\n}'
+  );
+  html=html.replace(
+    'function drawShafts(s){\n  if(s.kn<0.16) return;\n  const col=COLS[document.getElementById("ccol").value]||COLS.orange;\n  const use=s.phase==="flood"?col.f:(s.phase==="ebb"?col.e:col.s);\n  STN.forEach(function(st){\n    const kn=s.kn*st[2], rad=s.dir*Math.PI/180, len=6+kn*20;',
+    'function drawShafts(s){\n  const min=+document.getElementById("t").value;\n  const col=COLS[document.getElementById("ccol").value]||COLS.orange;\n  STN.forEach(function(st){\n    const local=streamAt(min,st[0],st[1]); if(local.kn<0.16) return;\n    const use=local.phase==="flood"?col.f:(local.phase==="ebb"?col.e:col.s);\n    const kn=CURR?local.kn:local.kn*st[2], rad=local.dir*Math.PI/180, len=6+kn*20;'
+  );
+  html=html.replace('loadLive(); tick();','loadLive();loadCurrents(); tick();');
+  html=html.replace('async function loadLive()','function loadCurrents(){fetch("/api/streams").then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.stations){CURR=d.stations;var el=document.getElementById("src");if(el)el.textContent="MODEL · 8 km · station shafts";dirty=true;}}).catch(function(){});}\nasync function loadLive()');
   html=html.replace('</body>',patch+'</body>');
   document.open();
   document.write(html);
