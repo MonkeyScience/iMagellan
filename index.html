@@ -11,10 +11,17 @@
 <script>
 fetch("https://cdn.jsdelivr.net/gh/MonkeyScience/iMagellan@d367c87594740177f7ddbb664b005b65a835b40e/index.html",{cache:"no-store"})
 .then(function(r){if(!r.ok)throw new Error(r.status);return r.text();})
-.then(function(html){document.open();document.write(html);document.close();})
+.then(function(html){
+  html=html
+    .replace('id="t" type="range" min="360" max="1140"','id="t" type="range" min="0" max="1439"')
+    .replace('id="dep" type="range" min="360" max="510"','id="dep" type="range" min="0" max="1439"');
+  document.open();
+  document.write(html);
+  document.close();
+})
 .catch(function(){
   document.body.style.cssText="color:#eef4fa;font-family:system-ui;padding:24px";
-  document.body.textContent="Restore failed to load d367c87. Hard-refresh.";
+  document.body.textContent="Failed to load iMagellan d367c87. Hard-refresh.";
 });
 </script>
 </body>
