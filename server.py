@@ -30,7 +30,8 @@ STREAM_PTS = [
     ("dielette", 49.5510, -1.8600),
 ]
 
-_CACHE = {"t": 0, "data": None}
+_CACHE = {"t": 0, "data": None, "ttl": 900}
+_IBI_ERR = {"msg": None}
 
 IBI_SRC = "MODEL · IBI · 2 km · not for navigation"
 SMOC_SRC = "Open-Meteo marine · Meteo-France SMOC tides+currents 8 km"
@@ -265,7 +266,14 @@ OFFICIAL_TIDES = {
 @app.get("/api/health")
 def health():
     user, pwd = _cmems_creds()
-    return {"ok": True, "app": "iMagellan", "ibi_creds": bool(user and pwd)}
+    src = (_CACHE.get("data") or {}).get("src")
+    return {
+        "ok": True,
+        "app": "iMagellan",
+        "ibi_creds": bool(user and pwd),
+        "streams_src": src,
+        "ibi_err": _IBI_ERR.get("msg"),
+    }
 
 
 @app.get("/api/wx")
@@ -287,19 +295,25 @@ async def wx(lat: float = Query(49.30), lon: float = Query(-2.43)):
 @app.get("/api/streams")
 async def streams():
     now = time.time()
-    if _CACHE["data"] and now - _CACHE["t"] < 900:
+    ttl = _CACHE.get("ttl") or 900
+    if _CACHE["data"] and now - _CACHE["t"] < ttl:
         return _CACHE["data"]
     user, pwd = _cmems_creds()
     if user and pwd:
         try:
             with ThreadPoolExecutor(max_workers=1) as ex:
-                payload = ex.submit(_ibi_stations).result(timeout=25)
+                payload = ex.submit(_ibi_stations).result(timeout=60)
             if payload and payload.get("ok") and payload.get("stations"):
+                _IBI_ERR["msg"] = None
                 _CACHE["t"] = now
                 _CACHE["data"] = payload
+                _CACHE["ttl"] = 900
                 return payload
-        except (FutTimeout, Exception):
-            pass
+            _IBI_ERR["msg"] = "ibi returned no stations"
+        except FutTimeout:
+            _IBI_ERR["msg"] = "ibi timeout 60s"
+        except Exception as e:
+            _IBI_ERR["msg"] = (type(e).__name__ + ": " + str(e))[:240]
     lats = ",".join(str(p[1]) for p in STREAM_PTS)
     lons = ",".join(str(p[2]) for p in STREAM_PTS)
     url = (
@@ -314,6 +328,7 @@ async def streams():
         payload = _smoc_payload_from_raw(raw)
         _CACHE["t"] = now
         _CACHE["data"] = payload
+        _CACHE["ttl"] = 120
         return payload
     except Exception as e:
         if _CACHE["data"]:
