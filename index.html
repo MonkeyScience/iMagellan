@@ -16,34 +16,15 @@ fetch("https://cdn.jsdelivr.net/gh/MonkeyScience/iMagellan@d367c87594740177f7ddb
   html=html.replace('slack-safe stream','8 km stream');
   html=html.replace('function stateAt(min){','function stateAt(min){min=((+min%1440)+1440)%1440;');
   html=html.replace('const kn=s.kn*st[2], rad=s.dir*Math.PI/180, len=6+kn*20;','var loc=window.__smocStn?window.__smocStn(st[0],st[1],s):null;const kn=(loc?loc.kn:s.kn*st[2]), rad=(loc?loc.dir:s.dir)*Math.PI/180, len=6+kn*20;');
-  html=html.replace('bctx.setLineDash([7,5]); bctx.strokeStyle="#e6b35a"; bctx.lineWidth=2.2; bctx.beginPath();\n  WPS.forEach(function(p,i){i?bctx.lineTo(X(p[0]),Y(p[1])):bctx.moveTo(X(p[0]),Y(p[1]));}); bctx.stroke(); bctx.setLineDash([]);','if(window.__paintRoute){window.__paintRoute(bctx,X,Y,WPS,CUM,TABLE,sogAt,cogBetween);}else{bctx.setLineDash([7,5]);bctx.strokeStyle="#e6b35a";bctx.lineWidth=2.2;bctx.beginPath();WPS.forEach(function(p,i){i?bctx.lineTo(X(p[0]),Y(p[1])):bctx.moveTo(X(p[0]),Y(p[1]));});bctx.stroke();bctx.setLineDash([]);}');
-  window.__legs=[];
-  window.__paintRoute=function(bctx,X,Y,WPS,CUM,TABLE,sogAt,cogBetween){
-    window.__legs=[];
-    if(!WPS||WPS.length<2)return;
-    for(var i=0;i<WPS.length-1;i++){
-      var n0=(CUM&&CUM[i])||0,n1=(CUM&&CUM[i+1])||n0;
-      var nmid=(n0+n1)/2, mm=0;
-      if(TABLE&&TABLE.length){var k=0;while(k<TABLE.length-2&&TABLE[k+1].nm<nmid)k++;mm=TABLE[k].min;}
-      else {var tEl=document.getElementById('t');mm=tEl?+tEl.value:0;}
-      var cog=cogBetween(WPS[i],WPS[i+1]);
-      var g=sogAt(mm,cog);
-      var sog=g.sog||0;
-      var col=sog<3.5?'#f87171':(sog<5.5?'#fbbf24':'#34d399');
-      bctx.setLineDash([]);
-      bctx.strokeStyle=col;bctx.lineWidth=3.2;bctx.lineCap='round';
-      bctx.beginPath();bctx.moveTo(X(WPS[i][0]),Y(WPS[i][1]));bctx.lineTo(X(WPS[i+1][0]),Y(WPS[i+1][1]));bctx.stroke();
-      window.__legs.push({x0:X(WPS[i][0]),y0:Y(WPS[i][1]),x1:X(WPS[i+1][0]),y1:Y(WPS[i+1][1]),min:mm,cog:cog,sog:sog,tws:g.st&&g.st.tws,kn:g.s&&g.s.kn,phase:g.s&&g.s.phase,dir:g.s&&g.s.dir,help:(g.s&&g.s.signed)?g.s.signed*Math.cos((155-cog)*Math.PI/180):0});
-    }
-  };
   document.open();
   document.write(html);
   document.close();
   var s=document.createElement("script");
-  s.textContent="KEEP_EXISTING_BRIEFING_AND_GRAPH_FROM_FILE";
+  s.src="/inject.js";
   document.body.appendChild(s);
 })
 .catch(function(){
+  document.body.style.cssText="color:#eef4fa;font-family:system-ui;padding:24px";
   document.body.textContent="Failed to load iMagellan. Hard-refresh.";
 });
 </script>
