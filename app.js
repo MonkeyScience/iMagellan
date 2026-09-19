@@ -1,6 +1,16 @@
+/* iMagellan loader — pulls briefing and tide scales as separate files */
 (function(){
-const LAND=[[[-2.67,49.50],[-2.52,49.51],[-2.50,49.49],[-2.525,49.42],[-2.66,49.44],[-2.70,49.47]],[[-2.25,49.26],[-2.01,49.26],[-2.02,49.18],[-2.20,49.17],[-2.27,49.23]],[[-2.34,49.03],[-2.00,49.02],[-1.98,48.90],[-2.28,48.90]],[[-2.38,49.46],[-2.34,49.44],[-2.35,49.40],[-2.38,49.39],[-2.40,49.43]],[[-2.23,49.74],[-2.16,49.74],[-2.16,49.70],[-2.23,49.70]]];
-const FR=[[-1.95,49.73],[-1.94,49.56],[-1.86,49.55],[-1.80,49.38],[-1.70,49.22],[-1.54,48.90],[-1.60,48.835],[-1.52,48.70],[-1.85,48.65],[-2.05,48.64],[-2.35,48.64],[-2.60,48.62]];
-/* RESTORED POST-FLIP CLIENT IN artifacts/app.fix.js */
-console.log('iMagellan load');
+  function load(src){
+    var s=document.createElement("script");
+    s.src=src;
+    s.onerror=function(){
+      var n=document.createElement("div");
+      n.style.cssText="position:fixed;bottom:8px;left:8px;right:8px;background:#3b1d1d;color:#fecaca;padding:8px 10px;border-radius:8px;z-index:99;font:12px system-ui";
+      n.textContent="Missing "+src+" — briefing/tides extra UI not loaded. Map baseline still runs.";
+      document.body.appendChild(n);
+    };
+    document.body.appendChild(s);
+  }
+  load("/brief.js?v=1");
+  load("/scales.js?v=1");
 })();
