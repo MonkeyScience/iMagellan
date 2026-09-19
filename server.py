@@ -1,6 +1,9 @@
 from pathlib import Path
+import math
 import os
 import time
+from datetime import datetime, timedelta, timezone
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutTimeout
 from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, JSONResponse
 import httpx
@@ -29,6 +32,9 @@ STREAM_PTS = [
 
 _CACHE = {"t": 0, "data": None}
 
+IBI_SRC = "MODEL · IBI · 2 km · not for navigation"
+SMOC_SRC = "Open-Meteo marine · Meteo-France SMOC tides+currents 8 km"
+
 
 def _hours_to_rows(block):
     h = (block or {}).get("hourly") or {}
@@ -54,14 +60,127 @@ def _hours_to_rows(block):
     return rows
 
 
+def _cmems_creds():
+    user = (
+        os.environ.get("COPERNICUSMARINE_SERVICE_USERNAME")
+        or os.environ.get("COPERNICUSMARINE_SERVICE_U")
+        or ""
+    ).strip()
+    pwd = (
+        os.environ.get("COPERNICUSMARINE_SERVICE_PASSWORD")
+        or os.environ.get("COPERNICUSMARINE_SERVICE_P")
+        or ""
+    ).strip()
+    return user, pwd
+
+
+def _london_tz():
+    try:
+        from zoneinfo import ZoneInfo
+        return ZoneInfo("Europe/London")
+    except Exception:
+        return timezone(timedelta(hours=1))
+
+
+def _to_london_min(ts, today0, tz):
+    if hasattr(ts, "to_pydatetime"):
+        dt = ts.to_pydatetime()
+    else:
+        raw = str(ts)[:19]
+        dt = datetime.fromisoformat(raw)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    local = dt.astimezone(tz)
+    mid = local.replace(hour=0, minute=0, second=0, microsecond=0)
+    off = int((mid - today0).total_seconds() // 86400)
+    return off * 1440 + local.hour * 60 + local.minute
+
+
+def _ibi_stations():
+    user, pwd = _cmems_creds()
+    if not user or not pwd:
+        return None
+    import copernicusmarine
+    cred_dir = Path("/tmp/copernicusmarine")
+    cred_dir.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("COPERNICUSMARINE_CREDENTIALS_DIRECTORY", str(cred_dir))
+    tz = _london_tz()
+    now = datetime.now(timezone.utc)
+    start = (now - timedelta(hours=2)).strftime("%Y-%m-%dT%H:00:00")
+    end = (now + timedelta(hours=36)).strftime("%Y-%m-%dT%H:00:00")
+    ds = copernicusmarine.open_dataset(
+        dataset_id="cmems_mod_ibi_phy_anfc_0.027deg-2D_PT1H-m",
+        variables=["uo", "vo"],
+        minimum_longitude=-2.80,
+        maximum_longitude=-1.55,
+        minimum_latitude=48.60,
+        maximum_latitude=49.80,
+        start_datetime=start,
+        end_datetime=end,
+        username=user,
+        password=pwd,
+    )
+    lat_name = "latitude" if "latitude" in ds.coords else "lat"
+    lon_name = "longitude" if "longitude" in ds.coords else "lon"
+    times = ds.time.values
+    today0 = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    stations = []
+    for sid, lat, lon in STREAM_PTS:
+        pt = ds.sel({lat_name: lat, lon_name: lon}, method="nearest")
+        uo = pt["uo"].squeeze()
+        vo = pt["vo"].squeeze()
+        hours = []
+        for i, t in enumerate(times):
+            try:
+                u = float(uo.isel(time=i).values)
+                v = float(vo.isel(time=i).values)
+            except Exception:
+                continue
+            if not math.isfinite(u) or not math.isfinite(v):
+                continue
+            kn = math.hypot(u, v) * 1.943844
+            deg = (math.degrees(math.atan2(u, v)) + 360.0) % 360.0
+            hours.append({
+                "min": _to_london_min(t, today0, tz),
+                "kn": round(kn, 2),
+                "dir": round(deg, 1),
+                "sl": None,
+            })
+        hours.sort(key=lambda r: r["min"])
+        if len(hours) < 6:
+            continue
+        stations.append({"id": sid, "lat": lat, "lon": lon, "hours": hours})
+    if len(stations) < 6:
+        return None
+    return {
+        "ok": True,
+        "src": IBI_SRC,
+        "stations": stations,
+    }
+
+
+def _smoc_payload_from_raw(raw):
+    blocks = raw if isinstance(raw, list) else [raw]
+    stations = []
+    for i, pt in enumerate(STREAM_PTS):
+        block = blocks[i] if i < len(blocks) else {}
+        stations.append({
+            "id": pt[0],
+            "lat": pt[1],
+            "lon": pt[2],
+            "hours": _hours_to_rows(block),
+        })
+    return {
+        "ok": True,
+        "src": SMOC_SRC,
+        "stations": stations,
+    }
+
+
 def _ev(t, typ, h):
     return {"t": t, "type": typ, "h": h}
 
 
-# Official Chart Datum extrema, local time (BST).
-# SPP: Jersey Met / National Oceanography Centre (copyright reserved).
-# Saint-Malo: SHOM via saintmaloinfo (auth 2026-008).
-# Planning overlay only — not a navigation product.
 OFFICIAL_TIDES = {
     "ok": True,
     "src": "Jersey Met/NOC + SHOM · Chart Datum · not for navigation",
@@ -145,7 +264,8 @@ OFFICIAL_TIDES = {
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "app": "iMagellan"}
+    user, pwd = _cmems_creds()
+    return {"ok": True, "app": "iMagellan", "ibi_creds": bool(user and pwd)}
 
 
 @app.get("/api/wx")
@@ -169,6 +289,17 @@ async def streams():
     now = time.time()
     if _CACHE["data"] and now - _CACHE["t"] < 900:
         return _CACHE["data"]
+    user, pwd = _cmems_creds()
+    if user and pwd:
+        try:
+            with ThreadPoolExecutor(max_workers=1) as ex:
+                payload = ex.submit(_ibi_stations).result(timeout=25)
+            if payload and payload.get("ok") and payload.get("stations"):
+                _CACHE["t"] = now
+                _CACHE["data"] = payload
+                return payload
+        except (FutTimeout, Exception):
+            pass
     lats = ",".join(str(p[1]) for p in STREAM_PTS)
     lons = ",".join(str(p[2]) for p in STREAM_PTS)
     url = (
@@ -180,21 +311,7 @@ async def streams():
     try:
         async with httpx.AsyncClient(timeout=20) as c:
             raw = (await c.get(url)).json()
-        blocks = raw if isinstance(raw, list) else [raw]
-        stations = []
-        for i, pt in enumerate(STREAM_PTS):
-            block = blocks[i] if i < len(blocks) else {}
-            stations.append({
-                "id": pt[0],
-                "lat": pt[1],
-                "lon": pt[2],
-                "hours": _hours_to_rows(block),
-            })
-        payload = {
-            "ok": True,
-            "src": "Open-Meteo marine · Meteo-France SMOC tides+currents 8 km",
-            "stations": stations,
-        }
+        payload = _smoc_payload_from_raw(raw)
         _CACHE["t"] = now
         _CACHE["data"] = payload
         return payload
