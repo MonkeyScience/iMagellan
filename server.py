@@ -54,6 +54,95 @@ def _hours_to_rows(block):
     return rows
 
 
+def _ev(t, typ, h):
+    return {"t": t, "type": typ, "h": h}
+
+
+# Official Chart Datum extrema, local time (BST).
+# SPP: Jersey Met / National Oceanography Centre (copyright reserved).
+# Saint-Malo: SHOM via saintmaloinfo (auth 2026-008).
+# Planning overlay only — not a navigation product.
+OFFICIAL_TIDES = {
+    "ok": True,
+    "src": "Jersey Met/NOC + SHOM · Chart Datum · not for navigation",
+    "datum": "CD",
+    "tz": "Europe/London",
+    "ports": [
+        {
+            "id": "spp",
+            "name": "St Peter Port",
+            "lat": 49.4567,
+            "lon": -2.5233,
+            "events": [
+                _ev("2026-09-18T23:27", "HW", 6.9),
+                _ev("2026-09-19T05:35", "LW", 4.0),
+                _ev("2026-09-19T11:50", "HW", 6.7),
+                _ev("2026-09-19T18:15", "LW", 4.2),
+                _ev("2026-09-20T00:22", "HW", 6.3),
+                _ev("2026-09-20T06:46", "LW", 4.6),
+                _ev("2026-09-20T13:12", "HW", 6.3),
+                _ev("2026-09-20T20:08", "LW", 4.5),
+                _ev("2026-09-21T02:33", "HW", 6.1),
+                _ev("2026-09-21T08:59", "LW", 4.6),
+                _ev("2026-09-21T15:33", "HW", 6.4),
+                _ev("2026-09-21T21:56", "LW", 4.2),
+                _ev("2026-09-22T04:23", "HW", 6.6),
+                _ev("2026-09-22T10:35", "LW", 4.1),
+                _ev("2026-09-22T16:43", "HW", 7.0),
+                _ev("2026-09-22T23:06", "LW", 3.5),
+                _ev("2026-09-23T05:14", "HW", 7.2),
+                _ev("2026-09-23T11:29", "LW", 3.4),
+                _ev("2026-09-23T17:29", "HW", 7.7),
+                _ev("2026-09-23T23:52", "LW", 2.8),
+                _ev("2026-09-24T05:54", "HW", 7.9),
+                _ev("2026-09-24T12:11", "LW", 2.7),
+                _ev("2026-09-24T18:10", "HW", 8.3),
+                _ev("2026-09-25T00:32", "LW", 2.2),
+                _ev("2026-09-25T06:33", "HW", 8.4),
+                _ev("2026-09-25T12:50", "LW", 2.1),
+                _ev("2026-09-25T18:48", "HW", 8.8),
+            ],
+        },
+        {
+            "id": "sablons",
+            "name": "Saint-Malo",
+            "lat": 48.6407,
+            "lon": -2.0285,
+            "coeff": 28,
+            "events": [
+                _ev("2026-09-18T23:58", "HW", 8.98),
+                _ev("2026-09-19T06:34", "LW", 4.99),
+                _ev("2026-09-19T12:17", "HW", 8.74),
+                _ev("2026-09-19T19:12", "LW", 5.24),
+                _ev("2026-09-20T00:55", "HW", 8.13),
+                _ev("2026-09-20T07:35", "LW", 5.69),
+                _ev("2026-09-20T13:57", "HW", 8.02),
+                _ev("2026-09-20T20:50", "LW", 5.70),
+                _ev("2026-09-21T03:26", "HW", 7.88),
+                _ev("2026-09-21T10:01", "LW", 5.85),
+                _ev("2026-09-21T16:19", "HW", 8.30),
+                _ev("2026-09-21T23:03", "LW", 5.22),
+                _ev("2026-09-22T04:58", "HW", 8.55),
+                _ev("2026-09-22T11:39", "LW", 5.05),
+                _ev("2026-09-22T17:24", "HW", 9.14),
+                _ev("2026-09-23T00:06", "LW", 4.29),
+                _ev("2026-09-23T05:49", "HW", 9.45),
+                _ev("2026-09-23T12:30", "LW", 4.10),
+                _ev("2026-09-23T18:09", "HW", 10.07),
+                _ev("2026-09-24T00:52", "LW", 3.39),
+                _ev("2026-09-24T06:30", "HW", 10.34),
+                _ev("2026-09-24T13:13", "LW", 3.24),
+                _ev("2026-09-24T18:48", "HW", 10.94),
+                _ev("2026-09-25T01:34", "LW", 2.61),
+                _ev("2026-09-25T07:08", "HW", 11.11),
+                _ev("2026-09-25T13:54", "LW", 2.53),
+                _ev("2026-09-25T19:26", "HW", 11.65),
+            ],
+        },
+    ],
+}
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "app": "iMagellan"}
@@ -113,6 +202,11 @@ async def streams():
         if _CACHE["data"]:
             return _CACHE["data"]
         return JSONResponse({"ok": False, "error": str(e)}, status_code=502)
+
+
+@app.get("/api/tides")
+def tides():
+    return OFFICIAL_TIDES
 
 
 @app.get("/app.js")
