@@ -37,34 +37,51 @@ fetch("https://cdn.jsdelivr.net/gh/MonkeyScience/iMagellan@d367c87594740177f7ddb
 .then(function(r){if(!r.ok)throw new Error(r.status);return r.text();})
 .then(function(html){
   html=html
-    .replace('id="t" type="range" min="360" max="1140"','id="t" type="range" min="0" max="1439"')
-    .replace('id="dep" type="range" min="360" max="510"','id="dep" type="range" min="0" max="1439"')
+    .replace('id=\"t\" type=\"range\" min=\"360\" max=\"1140\"','id=\"t\" type=\"range\" min=\"0\" max=\"1439\"')
+    .replace('id=\"dep\" type=\"range\" min=\"360\" max=\"510\"','id=\"dep\" type=\"range\" min=\"0\" max=\"1439\"')
     .replace('.field input,.field select{width:100%}','.field input,.field select,.field textarea{width:100%}.field textarea{min-height:64px;resize:vertical;font:inherit;background:#1c2a36;color:#eef4fa;border:0;border-radius:8px;padding:6px 8px}')
     .replace('<h2>Route</h2>',
       '<h2>Ask for a route</h2>'+
-      '<div class="field">Prompt<textarea id="rprompt" rows="3" placeholder="SPP to Sablons west about leaving 07:00">SPP to Sablons west about leaving 07:00</textarea></div>'+
-      '<button class="go" id="rparse">Build from prompt</button>'+
-      '<p id="rparseOut" class="note">Names, side of Jersey/Minquiers, and a leave time are read from the sentence.</p>'+
+      '<div class=\"field\">Prompt<textarea id=\"rprompt\" rows=\"3\" placeholder=\"SPP to Sablons west about leaving 07:00\">SPP to Sablons west about leaving 07:00</textarea></div>'+
+      '<button class=\"go\" id=\"rparse\">Build from prompt</button>'+
+      '<p id=\"rparseOut\" class=\"note\">Names, side of Jersey/Minquiers, and a leave time are read from the sentence.</p>'+
       '<h2>Or build it</h2>');
+  html=html.replace('<p>Teal = SPP. Orange = St-Malo. Gold line = Time slider.</p>',
+    '<p>Teal = SPP. Orange = St-Malo. Gold line = Time slider. Official CD · Jersey Met / SHOM · not for navigation.</p>');
+  html=html.replace('const SPP=[[304,3.4],[670,7.3],[1045,3.6],[1407,6.9],[1775,4.0],[2150,6.7]];','let SPP=[[304,3.4],[670,7.3],[1045,3.6],[1407,6.9],[1775,4.0],[2150,6.7]];');
+  html=html.replace('const MAL=[[366,1.14],[698,6.8],[1100,1.55],[1436,6.11],[1761,1.94],[1936,5.95]];','let MAL=[[366,1.14],[698,6.8],[1100,1.55],[1436,6.11],[1761,1.94],[1936,5.95]];');
+  html=html.replace(
+    'function nextExt(series,min){for(let i=0;i<series.length;i++) if(series[i][0]>min) return ((i%2===1)?\"HW \":\"LW \")+hhmm(series[i][0])+\" · \"+series[i][1].toFixed(1)+\" m\"; return \"—\";}',
+    'function nextExt(series,min){for(let i=0;i<series.length;i++) if(series[i][0]>min){const typ=series[i][2]||((i%2===1)?\"HW\":\"LW\"); return typ+\" \"+hhmm(series[i][0])+\" · \"+series[i][1].toFixed(1)+\" m\";} return \"—\";}'
+  );
+  html=html.replace(
+    'function nearestHW(series,min){let best=series[1],d=1e9; series.forEach(function(p,i){if(i%2===1){const x=Math.abs(p[0]-min); if(x<d){d=x;best=p;}}}); return best;}',
+    'function nearestHW(series,min){let best=null,d=1e9; series.forEach(function(p,i){const isHW=p[2]?p[2]===\"HW\":(i%2===1); if(isHW){const x=Math.abs(p[0]-min); if(x<d){d=x;best=p;}}}); return best||series[1];}'
+  );
+  html=html.replace('draw(SPP,\"#7dd3c7\",10); draw(MAL,\"#fb923c\",10);','draw(SPP,\"#7dd3c7\",13); draw(MAL,\"#fb923c\",13);');
+  html=html.replace(
+    'function nowMin(){const d=new Date();return d.getHours()*60+d.getMinutes();}',
+    'function nowMin(){const fmt=new Intl.DateTimeFormat(\"en-GB\",{timeZone:\"Europe/London\",hour:\"2-digit\",minute:\"2-digit\",hourCycle:\"h23\"});const o={};fmt.formatToParts(new Date()).forEach(function(p){o[p.type]=p.value;});return (+o.hour)*60+(+o.minute);}'
+  );
   html=html.replace('let LIVE=null','let LIVE=null,CURR=null');
   html=html.replace(
-    'function streamAt(min){\n  const hw=670, half=6.21*60;\n  const signed=1.65*Math.sin(Math.PI*(min-hw)/half);\n  const kn=Math.abs(signed);\n  const flood=signed<0;\n  return {kn:kn, signed:signed, dir:flood?155:335, phase:kn<0.28?"slack":(flood?"flood":"ebb")};\n}',
-    'function hourRow(rows,min){if(!rows||!rows.length)return null;let i=0;while(i<rows.length-2&&rows[i+1].min<min)i++;const A=rows[i],B=rows[i+1]||A,t=(min-A.min)/Math.max(1,(B.min||A.min+60)-A.min);const kn=(+A.kn||0)+((+B.kn||0)-(+A.kn||0))*t;const dA=+A.dir||0,dB=+(B.dir)||dA;const dir=wrap(dA+((((dB-dA+540)%360)-180)*t));return{kn:kn,dir:dir};}\nfunction streamAt(min,lon,lat){\n  const hw=670, half=6.21*60;\n  const signed=1.65*Math.sin(Math.PI*(min-hw)/half);\n  const kn=Math.abs(signed);\n  const flood=signed<0;\n  const atlas={kn:kn, signed:signed, dir:flood?155:335, phase:kn<0.28?"slack":(flood?"flood":"ebb")};\n  if(!CURR||!CURR.length) return atlas;\n  const lo=lon==null?-2.28:lon, la=lat==null?48.97:lat;\n  let best=null,bd=99;\n  CURR.forEach(function(st){const d=Math.hypot((st.lon-lo)*0.72,st.lat-la);if(d<bd){bd=d;best=st;}});\n  if(!best||bd>0.35) return atlas;\n  const row=hourRow(best.hours,min); if(!row) return atlas;\n  const fl=row.dir<90||row.dir>270;\n  return {kn:row.kn, signed:row.kn*(fl?-1:1), dir:row.dir, phase:row.kn<0.28?"slack":(fl?"flood":"ebb")};\n}'
+    'function streamAt(min){\n  const hw=670, half=6.21*60;\n  const signed=1.65*Math.sin(Math.PI*(min-hw)/half);\n  const kn=Math.abs(signed);\n  const flood=signed<0;\n  return {kn:kn, signed:signed, dir:flood?155:335, phase:kn<0.28?\"slack\":(flood?\"flood\":\"ebb\")};\n}',
+    'function hourRow(rows,min){if(!rows||!rows.length)return null;let i=0;while(i<rows.length-2&&rows[i+1].min<min)i++;const A=rows[i],B=rows[i+1]||A,t=(min-A.min)/Math.max(1,(B.min||A.min+60)-A.min);const kn=(+A.kn||0)+((+B.kn||0)-(+A.kn||0))*t;const dA=+A.dir||0,dB=+(B.dir)||dA;const dir=wrap(dA+((((dB-dA+540)%360)-180)*t));return{kn:kn,dir:dir};}\nfunction streamAt(min,lon,lat){\n  const hw=670, half=6.21*60;\n  const signed=1.65*Math.sin(Math.PI*(min-hw)/half);\n  const kn=Math.abs(signed);\n  const flood=signed<0;\n  const atlas={kn:kn, signed:signed, dir:flood?155:335, phase:kn<0.28?\"slack\":(flood?\"flood\":\"ebb\")};\n  if(!CURR||!CURR.length) return atlas;\n  const lo=lon==null?-2.28:lon, la=lat==null?48.97:lat;\n  let best=null,bd=99;\n  CURR.forEach(function(st){const d=Math.hypot((st.lon-lo)*0.72,st.lat-la);if(d<bd){bd=d;best=st;}});\n  if(!best||bd>0.35) return atlas;\n  const row=hourRow(best.hours,min); if(!row) return atlas;\n  const fl=row.dir<90||row.dir>270;\n  return {kn:row.kn, signed:row.kn*(fl?-1:1), dir:row.dir, phase:row.kn<0.28?\"slack\":(fl?\"flood\":\"ebb\")};\n}'
   );
   html=html.replace(
-    'function drawShafts(s){\n  if(s.kn<0.16) return;\n  const col=COLS[document.getElementById("ccol").value]||COLS.orange;\n  const use=s.phase==="flood"?col.f:(s.phase==="ebb"?col.e:col.s);\n  STN.forEach(function(st){\n    const kn=s.kn*st[2], rad=s.dir*Math.PI/180, len=6+kn*20;',
-    'function drawShafts(s){\n  const min=+document.getElementById("t").value;\n  const col=COLS[document.getElementById("ccol").value]||COLS.orange;\n  STN.forEach(function(st){\n    const local=streamAt(min,st[0],st[1]); if(local.kn<0.16) return;\n    const use=local.phase==="flood"?col.f:(local.phase==="ebb"?col.e:col.s);\n    const kn=CURR?local.kn:local.kn*st[2], rad=local.dir*Math.PI/180, len=6+kn*20;'
+    'function drawShafts(s){\n  if(s.kn<0.16) return;\n  const col=COLS[document.getElementById(\"ccol\").value]||COLS.orange;\n  const use=s.phase===\"flood\"?col.f:(s.phase===\"ebb\"?col.e:col.s);\n  STN.forEach(function(st){\n    const kn=s.kn*st[2], rad=s.dir*Math.PI/180, len=6+kn*20;',
+    'function drawShafts(s){\n  const min=+document.getElementById(\"t\").value;\n  const col=COLS[document.getElementById(\"ccol\").value]||COLS.orange;\n  STN.forEach(function(st){\n    const local=streamAt(min,st[0],st[1]); if(local.kn<0.16) return;\n    const use=local.phase===\"flood\"?col.f:(local.phase===\"ebb\"?col.e:col.s);\n    const kn=CURR?local.kn:local.kn*st[2], rad=local.dir*Math.PI/180, len=6+kn*20;'
   );
-  html=html.replace('loadLive(); tick();','loadLive();loadCurrents(); tick();');
-  html=html.replace('async function loadLive()','function loadCurrents(){fetch("/api/streams").then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.stations){CURR=d.stations;var el=document.getElementById("src");if(el)el.textContent="MODEL · 8 km · station shafts";dirty=true;}}).catch(function(){});}\nasync function loadLive()');
+  html=html.replace('loadLive(); tick();','loadLive();loadCurrents();loadTides(); tick();');
+  html=html.replace('async function loadLive()','function toMin(iso){var o={};new Intl.DateTimeFormat(\"en-GB\",{timeZone:\"Europe/London\",year:\"numeric\",month:\"2-digit\",day:\"2-digit\",hourCycle:\"h23\"}).formatToParts(new Date()).forEach(function(p){o[p.type]=p.value;});var off=Math.round((Date.UTC(+iso.slice(0,4),+iso.slice(5,7)-1,+iso.slice(8,10))-Date.UTC(+o.year,+o.month-1,+o.day))/86400000);return off*1440+(+iso.slice(11,13))*60+(+iso.slice(14,16)||0);}\nfunction loadTides(){fetch(\"/api/tides\").then(function(r){return r.json();}).then(function(d){if(!d||!d.ok||!d.ports)return;function series(id){var p=d.ports.find(function(x){return x.id===id;});if(!p||!p.events)return null;return p.events.map(function(e){return [toMin(e.t),+e.h,e.type];}).filter(function(a){return isFinite(a[0])&&isFinite(a[1]);}).sort(function(a,b){return a[0]-b[0];});}var a=series(\"spp\"),b=series(\"sablons\");if(a&&a.length>3)SPP=a;if(b&&b.length>3)MAL=b;dirty=true;}).catch(function(){});}\nfunction loadCurrents(){fetch(\"/api/streams\").then(function(r){return r.json();}).then(function(d){if(d&&d.ok&&d.stations){CURR=d.stations;var el=document.getElementById(\"src\");if(el)el.textContent=\"MODEL · 8 km · station shafts\";dirty=true;}}).catch(function(){});}\nasync function loadLive()');
   html=html.replace('</body>',patch+'</body>');
   document.open();
   document.write(html);
   document.close();
 })
 .catch(function(){
-  document.body.style.cssText="color:#eef4fa;font-family:system-ui;padding:24px";
-  document.body.textContent="Failed to load iMagellan. Hard-refresh.";
+  document.body.style.cssText=\"color:#eef4fa;font-family:system-ui;padding:24px\";
+  document.body.textContent=\"Failed to load iMagellan. Hard-refresh.\";
 });
 })();
 </script>
