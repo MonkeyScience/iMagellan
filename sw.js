@@ -1,4 +1,4 @@
-const CACHE="imagellan-d367-passthru";
+const CACHE="imagellan-d367-briefp";
 const PRE=["./","./index.html","./manifest.webmanifest","./icon.svg"];
 self.addEventListener("install",e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(PRE)).then(()=>self.skipWaiting()));
