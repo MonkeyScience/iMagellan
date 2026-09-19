@@ -12,6 +12,19 @@
 fetch("https://cdn.jsdelivr.net/gh/MonkeyScience/iMagellan@d367c87594740177f7ddbb664b005b65a835b40e/index.html",{cache:"no-store"})
 .then(function(r){if(!r.ok)throw new Error(r.status);return r.text();})
 .then(function(html){
+  var brief="<scr"+"ipt>(function(){"
++"function hhmm(min){min=((+min%1440)+1440)%1440;var h=Math.floor(min/60),m=Math.floor(min%60);return (h<10?'0':'')+h+':'+(m<10?'0':'')+m;}"
++"function txt(id){var e=document.getElementById(id);return e&&e.textContent?e.textContent.trim():'';}"
++"function val(id){var e=document.getElementById(id);return e?+e.value:0;}"
++"function opt(id){var e=document.getElementById(id);return e&&e.options&&e.selectedIndex>=0?e.options[e.selectedIndex].text:'';}"
++"function on(id){var e=document.getElementById(id);return !!(e&&e.checked);}"
++"var TIDE=null;fetch('/api/tides').then(function(r){return r.json();}).then(function(d){TIDE=d;paint();}).catch(function(){});"
++"function toMin(iso){if(!iso)return 0;var o={};new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).forEach(function(p){o[p.type]=p.value;});var off=Math.round((Date.UTC(+iso.slice(0,4),+iso.slice(5,7)-1,+iso.slice(8,10))-Date.UTC(+o.year,+o.month-1,+o.day))/86400000);return off*1440+(+iso.slice(11,13))*60+(+iso.slice(14,16)||0);}"
++"function nxt(id,min){if(!TIDE||!TIDE.ports)return '';var p=TIDE.ports.find(function(x){return x.id===id;});if(!p||!p.events)return '';for(var i=0;i<p.events.length;i++){var e=p.events[i],m=toMin(e.t);if(m>min)return e.type+' '+hhmm(m)+' '+Number(e.h).toFixed(1)+' m';}return '';}"
++"function paint(){var host=document.getElementById('rsum');if(!host||!host.parentNode)return;var el=document.getElementById('rbrief');if(!el){el=document.createElement('p');el.id='rbrief';el.className='note';el.style.cssText='white-space:pre-wrap;line-height:1.45;margin-top:10px';host.parentNode.insertBefore(el,host.nextSibling);}var dep=val('dep'),min=val('t'),east=on('vEJer');var side=east?'east-about':'west-about';var why=east?'West-about keeps Jersey to starboard.':'East-about puts you the other side of Jersey and the Minquiers.';var lines=[];lines.push('Leave '+hhmm(dep)+' '+side+' from '+(opt('rfrom')||'St Peter Port')+' to '+(opt('rto')||'Les Sablons')+'.');lines.push('At '+hhmm(min)+' you are '+(txt('who')||'On passage')+'. '+(txt('left')||'')+' left. ETA '+(txt('eta')||'-')+'.');lines.push('Wind '+(txt('wv')||'-')+' '+(txt('wg')||'')+'. Stream '+(txt('sv')||'-')+' kn '+(txt('sd')||'')+'.');var a=nxt('spp',min);if(a)lines.push('St Peter Port next '+a+' Chart Datum.');var b=nxt('sablons',min);if(b)lines.push('St-Malo next '+b+' Chart Datum.');lines.push('Why not the other way: '+why);lines.push('Planning sketch only. Not a chart.');el.textContent=lines.join('\\n');}"
++"setTimeout(paint,800);setInterval(paint,1000);"
++"})();</scr"+"ipt>";
+  html=html.replace("</body>",brief+"</body>");
   document.open();
   document.write(html);
   document.close();
