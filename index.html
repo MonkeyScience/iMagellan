@@ -20,8 +20,8 @@ fetch("https://cdn.jsdelivr.net/gh/MonkeyScience/iMagellan@d367c87594740177f7ddb
   document.write(html);
   document.close();
   var s=document.createElement("script");
-  s.src="/brief.js?v=sum1";
-  s.onerror=function(){console.warn("brief.js missing");};
+  s.src="/app.js?v=sum2";
+  s.onerror=function(){console.warn("app.js missing");};
   document.body.appendChild(s);
 })
 .catch(function(){
