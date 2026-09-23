@@ -1,33 +1,370 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>iMagellan</title>
-<meta name="theme-color" content="#0a4a58"/>
+<title>iMagellan — Live Brief</title>
+<meta name="theme-color" content="#071018"/>
+<meta name="description" content="Phone-first coastal passage brief. Not a chart. Plotter primary."/>
 <link rel="manifest" href="/manifest.webmanifest"/>
+<link rel="icon" href="/icon.svg"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --sea: #071018;
+    --sea2: #0a1a24;
+    --teal: #0a4a58;
+    --teal-mid: #0d5f70;
+    --gold: #e6b35a;
+    --acid: #c4ec56;
+    --paper: #eef4fa;
+    --muted: #8aa0ad;
+    --line: rgba(238,244,250,.12);
+    --rust: #ed6b45;
+    --cyan: #7ec8d4;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(10,74,88,.45), transparent 55%),
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(238,244,250,.03) 40px),
+      linear-gradient(180deg, #0a1a24 0%, var(--sea) 38%, #06141c 100%);
+    color: var(--paper);
+    font-family: Manrope, system-ui, sans-serif;
+    min-height: 100%;
+    display: flex;
+    justify-content: center;
+  }
+  .app {
+    width: 100%;
+    max-width: 430px;
+    min-height: 100%;
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    padding-bottom: calc(12px + var(--safe-bottom));
+    position: relative;
+  }
+  .status {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: calc(14px + var(--safe-top)) 18px 10px;
+    font-family: "DM Mono", monospace; font-size: 10px;
+    letter-spacing: .12em; text-transform: uppercase;
+  }
+  .live {
+    display: inline-flex; align-items: center; gap: 7px;
+    color: var(--acid);
+    border: 1px solid rgba(196,236,86,.3);
+    background: rgba(196,236,86,.08);
+    padding: 5px 9px; border-radius: 100px;
+  }
+  .live::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--acid); box-shadow: 0 0 8px var(--acid);
+  }
+  .live.offline { color: var(--muted); border-color: var(--line); background: rgba(238,244,250,.04); }
+  .live.offline::before { background: var(--muted); box-shadow: none; }
+  .early {
+    color: var(--cyan);
+    border: 1px solid rgba(126,200,212,.35);
+    padding: 5px 9px; border-radius: 100px;
+    background: rgba(10,74,88,.3);
+  }
+  .route-block { padding: 8px 18px 14px; }
+  .route-block .label {
+    font-family: "DM Mono", monospace; font-size: 9px;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+    margin-bottom: 6px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .route-block .label a {
+    color: var(--cyan); text-decoration: none; letter-spacing: .1em;
+    border: 1px solid rgba(126,200,212,.35); padding: 4px 8px; border-radius: 100px;
+  }
+  .route-block h1 {
+    font-size: 22px; font-weight: 700; letter-spacing: -.03em; line-height: 1.2;
+  }
+  .route-block h1 .arrow { color: var(--gold); margin: 0 4px; }
+  .clocks {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px;
+  }
+  .clock {
+    background: rgba(10,74,88,.35);
+    border: 1px solid rgba(126,200,212,.22);
+    border-radius: 14px; padding: 12px 14px;
+  }
+  .clock label {
+    display: block; font-family: "DM Mono", monospace; font-size: 9px;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px;
+  }
+  .clock .time-row { display: flex; align-items: baseline; gap: 6px; }
+  .clock strong {
+    font-size: 26px; font-weight: 700; letter-spacing: -.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  .clock input[type="time"] {
+    appearance: none; -webkit-appearance: none;
+    background: transparent; border: 0; color: var(--paper);
+    font: 700 26px/1 Manrope, system-ui, sans-serif;
+    letter-spacing: -.03em; width: 100%;
+    font-variant-numeric: tabular-nums;
+    color-scheme: dark;
+  }
+  .clock input[type="time"]::-webkit-calendar-picker-indicator { opacity: .35; filter: invert(1); }
+  .clock .sub {
+    font-family: "DM Mono", monospace; font-size: 10px; color: var(--gold); margin-top: 4px;
+  }
+  .sliders {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;
+  }
+  .sliders label {
+    font-family: "DM Mono", monospace; font-size: 9px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+    display: block; margin-bottom: 4px;
+  }
+  input[type="range"] {
+    width: 100%; accent-color: var(--gold); height: 4px;
+  }
+  .body {
+    padding: 0 18px 12px;
+    display: flex; flex-direction: column; gap: 12px;
+    min-height: 0;
+  }
+  .section-label {
+    font-family: "DM Mono", monospace; font-size: 9px;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-family: "DM Mono", monospace; font-size: 10px;
+    letter-spacing: .08em; text-transform: uppercase;
+    padding: 8px 11px; border-radius: 100px;
+    border: 1px solid rgba(230,179,90,.35);
+    color: var(--gold); background: rgba(230,179,90,.08);
+    cursor: pointer; user-select: none;
+  }
+  .chip.open {
+    border-color: rgba(196,236,86,.4);
+    color: var(--acid); background: rgba(196,236,86,.1);
+  }
+  .chip.warn {
+    border-color: rgba(237,107,69,.4);
+    color: var(--rust); background: rgba(237,107,69,.08);
+  }
+  .chip.muted {
+    border-color: var(--line); color: var(--muted); background: rgba(238,244,250,.03);
+  }
+  .chip-detail {
+    font-family: "DM Mono", monospace; font-size: 10px;
+    color: var(--muted); letter-spacing: .04em; min-height: 14px;
+    margin-top: 6px;
+  }
+  .panel-row {
+    display: grid; grid-template-columns: 1fr 1.15fr; gap: 10px;
+  }
+  .panel {
+    background: rgba(7,16,24,.72);
+    border: 1px solid var(--line);
+    border-radius: 16px; padding: 14px;
+  }
+  .wind { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .rose {
+    width: 108px; height: 108px; border-radius: 50%;
+    border: 1px solid rgba(238,244,250,.18);
+    background:
+      radial-gradient(circle at 50% 50%, rgba(10,74,88,.5), transparent 70%),
+      conic-gradient(from 200deg, rgba(230,179,90,.08), rgba(196,236,86,.25), rgba(230,179,90,.08));
+    position: relative;
+    display: grid; place-items: center;
+  }
+  .rose::before {
+    content: "";
+    position: absolute; inset: 14px;
+    border-radius: 50%;
+    border: 1px dashed rgba(230,179,90,.35);
+  }
+  .rose .needle {
+    width: 0; height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 36px solid var(--paper);
+    transform: rotate(0deg) translateY(-6px);
+    filter: drop-shadow(0 0 6px rgba(230,179,90,.5));
+    transition: transform .4s ease;
+    transform-origin: 50% 70%;
+  }
+  .rose .n {
+    position: absolute; top: 6px; font-family: "DM Mono", monospace;
+    font-size: 9px; letter-spacing: .1em; color: var(--muted);
+  }
+  .wind-meta {
+    text-align: center; font-family: "DM Mono", monospace; font-size: 10px;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  }
+  .wind-meta strong {
+    display: block; color: var(--paper); font-size: 18px; font-family: Manrope, sans-serif;
+    letter-spacing: -.02em; margin-bottom: 2px; text-transform: none;
+  }
+  .tide .row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 10px; gap: 8px;
+  }
+  .tide .row strong { font-size: 20px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .tide .row span {
+    font-family: "DM Mono", monospace; font-size: 9px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+  }
+  .tide .note {
+    font-size: 13px; line-height: 1.45; color: #c5d4de;
+    border-top: 1px solid var(--line); padding-top: 10px;
+  }
+  .tide .note b { color: var(--gold); font-weight: 600; }
+  .gps {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    background: rgba(10,74,88,.28);
+    border: 1px solid rgba(126,200,212,.2);
+    border-radius: 14px; padding: 12px 14px;
+    font-family: "DM Mono", monospace; font-size: 10px;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  }
+  .gps strong {
+    color: var(--paper); font-size: 13px; letter-spacing: 0;
+    text-transform: none; font-family: Manrope, sans-serif; text-align: right;
+  }
+  .honesty {
+    font-family: "DM Mono", monospace; font-size: 10px;
+    color: var(--muted); letter-spacing: .04em; line-height: 1.4;
+    padding: 0 2px;
+  }
+  .footer {
+    margin: 4px 14px 8px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(238,244,250,.14);
+    background: rgba(2,6,8,.65);
+    text-align: center;
+    font-family: "DM Mono", monospace; font-size: 10px;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted);
+    position: sticky; bottom: calc(4px + var(--safe-bottom));
+  }
+  .footer b { color: var(--gold); font-weight: 500; }
+  /* Hidden legacy IDs for any shared helpers */
+  .legacy { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  @media (min-width: 720px) {
+    body {
+      background:
+        radial-gradient(ellipse at 72% 20%, rgba(10,74,88,.55), transparent 42%),
+        radial-gradient(ellipse at 18% 80%, rgba(230,179,90,.08), transparent 36%),
+        linear-gradient(160deg, #050b10 0%, var(--sea) 45%, #061820 100%);
+      align-items: center; padding: 24px;
+    }
+    .app {
+      min-height: 780px; max-height: 900px;
+      border-radius: 34px;
+      box-shadow:
+        0 0 0 1px rgba(238,244,250,.1),
+        0 40px 100px rgba(0,0,0,.55),
+        0 0 80px rgba(10,74,88,.35);
+      background: linear-gradient(180deg, #0a1a24 0%, var(--sea) 38%, #06141c 100%);
+      overflow: hidden;
+    }
+  }
+</style>
 </head>
-<body style="margin:0;background:#071018">
-<script>
-fetch("https://cdn.jsdelivr.net/gh/MonkeyScience/iMagellan@d367c87594740177f7ddbb664b005b65a835b40e/index.html",{cache:"no-store"})
-.then(function(r){if(!r.ok)throw new Error(r.status);return r.text();})
-.then(function(html){
-  html=html.replace('function streamAt(min){','function streamAt(min){if(window.__smocAt){var u=window.__smocAt(min);if(u)return u;}');
-  html=html.replace('slack-safe stream','8 km stream');
-  html=html.replace('function stateAt(min){','function stateAt(min){min=((+min%1440)+1440)%1440;');
-  html=html.replace('const kn=s.kn*st[2], rad=s.dir*Math.PI/180, len=6+kn*20;','var loc=window.__smocStn?window.__smocStn(st[0],st[1],s):null;const kn=(loc?loc.kn:s.kn*st[2]), rad=(loc?loc.dir:s.dir)*Math.PI/180, len=6+kn*20;');
-  document.open();
-  document.write(html);
-  document.close();
-  var s=document.createElement("script");
-  s.src="/app.js?v=sum2";
-  s.onerror=function(){console.warn("app.js missing");};
-  document.body.appendChild(s);
-})
-.catch(function(){
-  document.body.style.cssText="color:#eef4fa;font-family:system-ui;padding:24px";
-  document.body.textContent="Failed to load iMagellan. Hard-refresh.";
-});
-</script>
+<body>
+  <div class="app" id="app">
+    <div class="status">
+      <span class="live offline" id="livePill">Live brief</span>
+      <span class="early">Early build</span>
+    </div>
+
+    <div class="route-block">
+      <div class="label">
+        <span>Planned route</span>
+        <a href="/map.html" id="mapLink">Map</a>
+      </div>
+      <h1>St Peter Port <span class="arrow">→</span> Les Sablons</h1>
+      <div class="clocks">
+        <div class="clock">
+          <label for="leaveTime">Leave</label>
+          <input type="time" id="leaveTime" value="06:40" step="60"/>
+          <div class="sub" id="leaveSub">—</div>
+        </div>
+        <div class="clock">
+          <label for="arriveTime">Arrive</label>
+          <input type="time" id="arriveTime" value="11:55" step="60"/>
+          <div class="sub" id="arriveSub">—</div>
+        </div>
+      </div>
+      <div class="sliders">
+        <div>
+          <label for="dep">Leave slider</label>
+          <input type="range" id="dep" min="0" max="1439" value="400"/>
+        </div>
+        <div>
+          <label for="t">Now / scrub</label>
+          <input type="range" id="t" min="0" max="2159" value="400"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="body">
+      <div>
+        <div class="section-label">Stream gates</div>
+        <div class="chips" id="gateChips">
+          <button type="button" class="chip muted" data-gate="russell" id="chipRussell">Russell · …</button>
+          <button type="button" class="chip muted" data-gate="minqw" id="chipMinqw">Minquiers · …</button>
+          <button type="button" class="chip muted" data-gate="sablons" id="chipSablons">Sablons · …</button>
+        </div>
+        <div class="chip-detail" id="gateDetail">Stream is the 8 km model — not chart authority.</div>
+      </div>
+
+      <div class="panel-row">
+        <div class="panel wind">
+          <div class="section-label" style="align-self:flex-start;width:100%">Wind</div>
+          <div class="rose" aria-hidden="true">
+            <span class="n">N</span>
+            <div class="needle" id="windNeedle"></div>
+          </div>
+          <div class="wind-meta">
+            <strong id="windMain">—</strong>
+            <span id="windGust">gust —</span>
+          </div>
+        </div>
+        <div class="panel tide">
+          <div class="section-label">Tide / sill</div>
+          <div class="row"><span>Height now</span><strong id="tideNow">—</strong></div>
+          <div class="row"><span>At arrive</span><strong id="tideArrive">—</strong></div>
+          <div class="note" id="sillNote"><b>Sill note:</b> Sablons sill +2.0 m CD — waiting on tide data.</div>
+        </div>
+      </div>
+
+      <div class="gps">
+        <span>GPS context</span>
+        <strong id="gpsText">Checking location…</strong>
+      </div>
+
+      <p class="honesty" id="srcNote">Planning sketch. Not a chart. Plotter stays primary.</p>
+    </div>
+
+    <div class="footer"><b>Not a chart</b> · plotter primary</div>
+  </div>
+
+  <!-- Legacy / shared IDs used by prior briefing helpers -->
+  <div class="legacy" aria-hidden="true">
+    <span id="eta">11:55</span>
+    <span id="wv">—</span>
+    <span id="wg">—</span>
+    <span id="who">On passage</span>
+    <span id="left">—</span>
+    <span id="sppNow">—</span>
+    <span id="malNow">—</span>
+  </div>
+
+  <script src="/brief-app.js" defer></script>
 </body>
 </html>
