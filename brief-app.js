@@ -1,1 +1,1 @@
-@file:///tmp/brief_push_files/brief-app.js
+aGVsbG8gd29ybGQK
