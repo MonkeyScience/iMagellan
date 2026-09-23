@@ -1,1 +1,1 @@
-x
+@file:///tmp/brief_push_files/brief-app.js
