@@ -28,38 +28,52 @@
     <span>Map · secondary · early build</span>
   </div>
   <div id="fallback">
-    Loading the legacy map shell… If this stays blank, open the <a href="/" style="color:#e6b35a">Live brief</a> instead. Plotter stays primary.
+    Loading map shell… If this stays blank, open the <a href="/" style="color:#e6b35a">Live brief</a> instead. Plotter stays primary.
   </div>
   <script>
   (function () {
+    var q = location.search || "";
+    // Prefer local shell (OpenSeaMap seamarks + tall tide scales + prompt). Fall back to pinned CDN.
+    var LOCAL = "/cdn-map-shell.html" + q;
     var PIN = "https://cdn.jsdelivr.net/gh/MonkeyScience/iMagellan@d367c87594740177f7ddbb664b005b65a835b40e/index.html";
-    fetch(PIN, { cache: "no-store" })
+    function injectBack() {
+      var bar = document.createElement("div");
+      bar.style.cssText = "position:fixed;top:8px;left:8px;z-index:9999;background:rgba(7,16,24,.9);border:1px solid rgba(230,179,90,.4);border-radius:100px;padding:6px 12px;font:12px system-ui";
+      bar.innerHTML = '<a href="/" style="color:#e6b35a;text-decoration:none">← Live brief</a>';
+      document.body.appendChild(bar);
+      var s = document.createElement("script");
+      s.src = "/app.js?v=brief2";
+      s.onerror = function () { console.warn("app.js missing"); };
+      document.body.appendChild(s);
+    }
+    function write(html) {
+      document.open();
+      document.write(html);
+      document.close();
+      injectBack();
+    }
+    fetch(LOCAL, { cache: "no-store" })
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
-      .then(function (html) {
-        html = html.replace("function streamAt(min){", "function streamAt(min){if(window.__smocAt){var u=window.__smocAt(min);if(u)return u;}");
-        html = html.replace("slack-safe stream", "8 km stream");
-        html = html.replace("function stateAt(min){", "function stateAt(min){min=((+min%1440)+1440)%1440;");
-        html = html.replace(
-          "const kn=s.kn*st[2], rad=s.dir*Math.PI/180, len=6+kn*20;",
-          "var loc=window.__smocStn?window.__smocStn(st[0],st[1],s):null;const kn=(loc?loc.kn:s.kn*st[2]), rad=(loc?loc.dir:s.dir)*Math.PI/180, len=6+kn*20;"
-        );
-        document.open();
-        document.write(html);
-        document.close();
-        var bar = document.createElement("div");
-        bar.style.cssText = "position:fixed;top:8px;left:8px;z-index:9999;background:rgba(7,16,24,.9);border:1px solid rgba(230,179,90,.4);border-radius:100px;padding:6px 12px;font:12px system-ui";
-        bar.innerHTML = '<a href="/" style="color:#e6b35a;text-decoration:none">← Live brief</a>';
-        document.body.appendChild(bar);
-        var s = document.createElement("script");
-        s.src = "/app.js?v=brief1";
-        s.onerror = function () { console.warn("app.js missing"); };
-        document.body.appendChild(s);
-      })
+      .then(write)
       .catch(function () {
-        var f = document.getElementById("fallback");
-        if (f) {
-          f.innerHTML = "Map shell could not load (CDN or network). Use the <a href=\"/\" style=\"color:#e6b35a\">Live brief</a> — it does not need the legacy shell. <code>NOT A CHART · PLOTTER PRIMARY</code>";
-        }
+        fetch(PIN, { cache: "no-store" })
+          .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+          .then(function (html) {
+            html = html.replace("function streamAt(min){", "function streamAt(min){if(window.__smocAt){var u=window.__smocAt(min);if(u)return u;}");
+            html = html.replace("slack-safe stream", "8 km stream");
+            html = html.replace("function stateAt(min){", "function stateAt(min){min=((+min%1440)+1440)%1440;");
+            html = html.replace(
+              "const kn=s.kn*st[2], rad=s.dir*Math.PI/180, len=6+kn*20;",
+              "var loc=window.__smocStn?window.__smocStn(st[0],st[1],s):null;const kn=(loc?loc.kn:s.kn*st[2]), rad=(loc?loc.dir:s.dir)*Math.PI/180, len=6+kn*20;"
+            );
+            write(html);
+          })
+          .catch(function () {
+            var f = document.getElementById("fallback");
+            if (f) {
+              f.innerHTML = "Map shell could not load. Use the <a href=\"/\" style=\"color:#e6b35a\">Live brief</a> — it does not need the legacy shell. <code>NOT A CHART · PLOTTER PRIMARY</code>";
+            }
+          });
       });
   })();
   </script>
