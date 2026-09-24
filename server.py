@@ -123,7 +123,7 @@ OFFICIAL_TIDES = {
                 _ev("2026-09-22T10:35", "LW", 4.1),
                 _ev("2026-09-22T16:43", "HW", 7.0),
                 _ev("2026-09-22T23:06", "LW", 3.5),
-                _ev("2026-09-23T05:14", "HW", 7.2),
+                _ev("2026-09-22T05:14", "HW", 7.2),
                 _ev("2026-09-23T11:29", "LW", 3.4),
                 _ev("2026-09-23T17:29", "HW", 7.7),
                 _ev("2026-09-23T23:52", "LW", 2.8),
@@ -317,7 +317,7 @@ def static_asset(name: str):
         return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
     f = ROOT / name
     if not f.is_file():
-        return FileResponse(f, media_type=_STATIC_TYPES.get(f.suffix.lower(), "application/octet-stream")) if False else JSONResponse({"ok": False, "error": "missing"}, status_code=404)
+        return JSONResponse({"ok": False, "error": "missing"}, status_code=404)
     media = _STATIC_TYPES.get(f.suffix.lower(), "application/octet-stream")
     return FileResponse(f, media_type=media)
 
