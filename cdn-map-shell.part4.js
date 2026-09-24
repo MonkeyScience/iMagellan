@@ -1,3 +1,4 @@
+  watch=navigator.geolocation.watchPosition(function(p){ GPS={lat:p.coords.latitude,lon:p.coords.longitude}; if(document.getElementById("follow").checked) snapFollow(); else document.getElementById("gpsstat").textContent="fix "+GPS.lat.toFixed(3)+"N "+Math.abs(GPS.lon).toFixed(3)+"W"; dirty=true; }, function(){document.getElementById("gpsstat").textContent="GPS blocked";},{enableHighAccuracy:true,maximumAge:2000,timeout:12000});
 };
 document.getElementById("z").addEventListener("input",function(){dirty=true;});
 document.getElementById("style").onchange=function(){mapStyle=this.value; dirty=true;};
@@ -8,7 +9,7 @@ document.getElementById("now").onclick=function(){document.getElementById("t").v
 let drag=null;
 bg.addEventListener("pointerdown",function(ev){drag={x:ev.clientX,y:ev.clientY,lon:cam.lon,lat:cam.lat};});
 bg.addEventListener("pointerup",function(){drag=null;});
-bg.addEventListener("pointermove",function(ev){if(!drag)return; dropFollow(); const sL=(LON1-LON0)/cam.z,sA=(LAT1-LAT0)/cam.z; cam.lon=drag.lon-(ev.clientX-drag.x)/W*sL; cam.lat=drag.lat+(ev.clientY-drag.y)/H*sA; dirty=true;});
+bg.addEventListener("pointermove",function(ev){if(!drag)return; dropFollow(); const v=view(); cam.lon=drag.lon-(ev.clientX-drag.x)/W*v.sLon; cam.lat=drag.lat+(ev.clientY-drag.y)/H*v.sLat; dirty=true;});
 document.querySelectorAll("#nav button").forEach(function(b){b.onclick=function(){document.querySelectorAll("#nav button").forEach(function(x){x.classList.remove("on");}); b.classList.add("on"); const p=b.dataset.p; document.getElementById("view-map").style.display=p==="map"?"flex":"none"; ["tides","ports","routes"].forEach(function(n){document.getElementById("view-"+n).classList.toggle("on",p===n);}); dirty=true; if(p==="map") resize();};});
 async function loadLive(){try{const u="https://api.open-meteo.com/v1/forecast?latitude=49.30&longitude=-2.43&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn&timezone=Europe/London&forecast_days=1"; const w=await (await fetch(u)).json(); const hours=(w.hourly.time||[]).map(function(s,i){const hm=s.split("T")[1].split(":"); return {min:(+hm[0])*60+(+hm[1]||0), tws:w.hourly.wind_speed_10m[i], twd:w.hourly.wind_direction_10m[i], gust:w.hourly.wind_gusts_10m[i], hs:1.4};}); if(hours.length>3){LIVE=hours;TABDEP=-1;TABLE=null;document.getElementById("src").textContent="LIVE wind · 8 km stream";rebuildHours(+document.getElementById("dep").value);dirty=true;}}catch(e){}}
 
@@ -75,13 +76,3 @@ function parsePrompt(){
 
   var fromKey=null, toKey=null;
   var arrow = s.split(/\bto\b|\u2192|->/);
-  if(arrow.length>=2){
-    fromKey = matchPortKey(arrow[0]);
-    toKey = matchPortKey(arrow.slice(1).join(" to "));
-  } else {
-    toKey = matchPortKey(s);
-  }
-  var fm = s.match(/\bfrom\s+([a-z0-9 .'-]{2,40}?)(?:\s+to\b|$)/);
-  if(fm){ var fk=matchPortKey(fm[1]); if(fk) fromKey=fk; }
-
-  var rf=document.getElementById("rfrom"), rt=document.getElementById("rto");
