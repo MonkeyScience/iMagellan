@@ -1,1 +1,163 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>iMagellan</title>
+<meta name="theme-color" content="#0a4a58"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;height:100dvh;max-height:100dvh;background:#071018;color:#eef4fa;font-family:system-ui,sans-serif;overflow:hidden}
+#app{display:flex;flex-direction:column;height:100%;height:100dvh;max-height:100dvh;min-height:0}
+#view-map{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+#scale{flex:0 0 10px;display:flex;font-size:8px;font-weight:800;color:#111}
+#scale span{flex:1;text-align:center;line-height:10px}
+#mapwrap{flex:1 1 auto;position:relative;background:#0a4a58;touch-action:none;min-height:0;min-width:0}
+#mapwrap canvas#bg,#mapwrap canvas#fg{position:absolute;inset:0;width:100%;height:100%;display:block}
+#fg{pointer-events:none}
+#card{position:absolute;top:max(6px,env(safe-area-inset-top));left:6px;right:48px;background:#0e1620f2;border-radius:12px;padding:6px 8px;z-index:3;max-width:calc(100% - 54px)}
+#card .who{font-size:12px;font-weight:800}
+#card .src{font-size:9px;color:#7dd3c7;margin:1px 0 4px}
+#card .row{display:flex;gap:8px;flex-wrap:wrap}
+#card .k{font-size:8px;color:#9bb0c3;text-transform:uppercase}
+#card .v{font-size:14px;font-weight:800}
+#card .sub{font-size:10px;color:#9bb0c3}
+#tools{position:absolute;top:max(6px,env(safe-area-inset-top));right:4px;z-index:3;display:flex;flex-direction:column;gap:5px}
+#tools button{width:34px;height:34px;border:0;border-radius:10px;background:#15202b;color:#eef4fa;font-size:13px}
+#tideStrip{flex:0 0 auto;display:none;flex-direction:column;background:#0b1218;border-top:1px solid #1e2a36;padding:4px 8px 6px;gap:2px}
+#tideStrip.on{display:flex}
+#tideStrip .tr{display:flex;justify-content:space-between;gap:8px;font-size:10px;color:#9bb0c3;flex-wrap:wrap}
+#tideStrip .tr b{color:#e6b35a;font-weight:700}
+canvas.tgmap{width:100%;height:118px;background:#101820;border-radius:8px;display:block}
+#hud{flex:0 0 auto;background:#101820;padding:6px 10px 4px;max-height:min(34vh,260px);overflow-y:auto;-webkit-overflow-scrolling:touch}
+.hours{display:flex;gap:4px;overflow:auto;padding:1px 0 2px}
+.hours button{background:#1c2a36;color:#cfe3f4;border:0;border-radius:8px;padding:5px 7px;font-size:10px;font-weight:700;white-space:nowrap}
+.ctrl{display:flex;align-items:center;gap:6px;margin:2px 0;font-size:11px;color:#9bb0c3}
+.ctrl b{color:#e6b35a;min-width:40px;font-size:11px}
+.ctrl select,.field input,.field select{background:#1c2a36;color:#eef4fa;border:0;border-radius:8px;padding:5px 6px;font-size:11px}
+input[type=range]{flex:1;accent-color:#2dd4bf;min-width:0}
+.chips{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11px;color:#cfe3f4}
+.chips label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.note{font-size:9px;color:#7a8ea3;margin-top:1px}
+#nav{display:flex;flex:0 0 auto;background:#0b1218;border-top:1px solid #1e2a36}
+#nav button{flex:1;background:none;border:0;color:#8aa0b4;padding:9px 0 calc(9px + env(safe-area-inset-bottom));font-weight:800;font-size:12px}
+#nav button.on{color:#2dd4bf}
+.page{display:none;flex:1;overflow:auto;padding:14px 14px calc(20px + env(safe-area-inset-bottom));background:#0b1218;min-height:0}
+.page.on{display:block}
+.page h2{font-size:16px;margin:12px 0 6px}
+.page p{font-size:13px;color:#cfe3f4;line-height:1.45;margin:4px 0}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+.kv div{background:#15202b;border-radius:10px;padding:8px}
+.kv b{display:block;font-size:11px;color:#9bb0c3}
+canvas.tg{width:100%;height:200px;background:#101820;border-radius:10px;margin:8px 0}
+canvas.wg{width:100%;height:168px;background:#101820;border-radius:10px;margin:8px 0}
+.ok{color:#34d399}.no{color:#fb7185}
+.field{display:flex;flex-direction:column;gap:4px;margin:8px 0;font-size:12px;color:#9bb0c3}
+.field input,.field select,.field textarea{width:100%}.field textarea{min-height:64px;resize:vertical;font:inherit;background:#1c2a36;color:#eef4fa;border:0;border-radius:8px;padding:6px 8px}
+.checks{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:13px;color:#cfe3f4}
+.go{background:#115e59;color:#fff;border:0;border-radius:10px;padding:10px 12px;font-weight:800;width:100%;margin:8px 0}
+@media (max-height:680px){
+  canvas.tgmap{height:96px}
+  #hud{max-height:min(30vh,220px);padding:4px 8px 2px}
+  #card .v{font-size:13px}
+}
+@media (max-height:560px){
+  canvas.tgmap{height:78px}
+  #scale{flex-basis:8px}
+  .note{display:none}
+}
+</style></head>
+<body>
+<div id="app">
+<div id="view-map" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden">
+<div id="scale"><span style="background:#7ad7ff">0</span><span style="background:#7dff7a">5</span><span style="background:#b7f06e">10</span><span style="background:#d7f33a">15</span><span style="background:#ffe44a">20</span><span style="background:#ff3b3b">30+</span></div>
+<div id="mapwrap">
+<canvas id="bg"></canvas><canvas id="fg"></canvas>
+<div id="card">
+<div class="who" id="who">St Peter Port</div>
+<div class="src" id="src">Wind + stream shafts</div>
+<div class="row">
+<div><div class="k">Wind</div><div class="v" id="wv">10</div><div class="sub" id="wg">W</div></div>
+<div><div class="k">Stream</div><div class="v" id="sv">1.2</div><div class="sub" id="sd">flood</div></div>
+<div><div class="k">ETA</div><div class="v" id="eta">16:30</div><div class="sub" id="left">nm</div></div>
+</div></div>
+<div id="tools"><button id="zi">+</button><button id="zo">−</button><button id="now">T</button><button id="gps">GPS</button></div>
+</div>
+<div id="tideStrip" class="on" aria-label="Tide graph on map">
+<canvas class="tgmap" id="tgMap"></canvas>
+<div class="tr"><span id="tideReadNow">SPP — · St-Malo —</span><span id="tideReadNext">Next —</span></div>
+</div>
+<div id="hud">
+<div class="hours" id="hours"></div>
+<div class="ctrl"><span>Time</span><b id="tlab">--</b><input id="t" type="range" min="360" max="1140" value="745"/></div>
+<div class="ctrl"><span>Depart</span><b id="dlab">06:50</b><input id="dep" type="range" min="360" max="510" value="410"/></div>
+<div class="ctrl"><span>Zoom</span><b id="zlab">1.8×</b><input id="z" type="range" min="10" max="60" value="18"/></div>
+<div class="ctrl"><span>Map</span>
+<select id="style"><option value="vector">Simple vector</option><option value="streets">Street tiles</option><option value="sat">Satellite</option></select>
+<select id="ccol"><option value="orange">Currents orange</option><option value="teal">Teal / pink</option><option value="blue">Blue</option></select>
+</div>
+<div class="chips"><label><input type="checkbox" id="follow"/> Follow GPS</label>
+<label><input type="checkbox" id="seams" checked/> Seamarks</label>
+<label><input type="checkbox" id="tideOnMap" checked/> Tide graph</label>
+<span id="gpsstat">GPS off — tap GPS</span></div>
+<div class="note">OpenSeaMap seamarks · drying rocks. Not a chart.</div>
+</div></div>
+<div id="view-tides" class="page">
+<h2>Tides at <span id="tideClock">--</span></h2>
+<p id="tideHint">Teal = SPP. Orange = St-Malo. Scale metres CD. Gold = time. Markers = journey.</p>
+<canvas class="tg" id="tg"></canvas>
+<div id="tgTip" style="font-size:11px;color:#e6b35a;min-height:16px">Tap graph for a reading</div>
+<div class="kv">
+<div><b>St Peter Port</b><span id="sppNow">--</span></div>
+<div><b>St-Malo / Sablons</b><span id="malNow">--</span></div>
+<div><b>Next SPP</b><span id="sppNext">--</span></div>
+<div><b>Next St-Malo</b><span id="malNext">--</span></div>
+</div>
+</div>
+<div id="view-ports" class="page">
+<h2>Windows at <span id="portClock">--</span></h2>
+<canvas class="wg" id="win"></canvas>
+<div class="kv">
+<div><b>Sablons sill +2.0 m</b><span id="sill">--</span></div>
+<div><b>Victoria ~HW ± 3 h</b><span id="vic">--</span></div>
+<div><b>Naye lock (info)</b><span id="lock">--</span></div>
+<div><b>Stream</b><span id="portStr">--</span></div>
+</div>
+<p>Green = open. Gold = Time. White = ETA. Briefing only.</p>
+</div>
+<div id="view-routes" class="page">
+<h2>Ask for a route</h2>
+<div class="field">Prompt<textarea id="rprompt" rows="3" placeholder="SPP to Sablons west about leaving 07:00">SPP to Sablons west about leaving 06:40</textarea></div>
+<button class="go" id="rparse">Build from prompt</button>
+<p id="rparseOut" class="note">Ports, side (west/east about, Russell, Minquiers), leave time, and optional ETA are read from the sentence.</p>
+<h2>Or build it</h2>
+<div class="field">Name<input id="rname" value="SPP to Sablons"/></div>
+<div class="field">From<select id="rfrom"></select></div>
+<div class="field">To<select id="rto"></select></div>
+<div class="checks">
+<label><input type="checkbox" id="vRuss" checked/> Little Russell</label>
+<label><input type="checkbox" id="vWJer" checked/> West of Jersey</label>
+<label><input type="checkbox" id="vWMin" checked/> West of Minquiers</label>
+<label><input type="checkbox" id="vEJer"/> East of Jersey</label>
+</div>
+<button class="go" id="rapply">Use this route</button>
+<p id="rsum">Default: St Peter Port → Les Sablons west of Jersey and Minquiers.</p>
+</div>
+<div id="nav">
+<button class="on" data-p="map">Map</button>
+<button data-p="tides">Tides</button>
+<button data-p="ports">Ports</button>
+<button data-p="routes">Route</button>
+</div>
+</div>
+<script>
+(async function(){
+  var parts = ["/cdn-map-shell.part0.js","/cdn-map-shell.part1.js","/cdn-map-shell.part2.js"];
+  var code = '';
+  for (var i=0;i<parts.length;i++){
+    var r = await fetch(parts[i]+'?v=tide1', {cache:'no-store'});
+    if(!r.ok) throw new Error('part '+i);
+    code += await r.text();
+  }
+  (0, eval)(code);
+})().catch(function(e){ console.error(e); document.body.insertAdjacentHTML('beforeend','<pre style="color:#fb7185;padding:12px">Map shell failed to load parts. '+e+'</pre>'); });
+</script></body></html>
