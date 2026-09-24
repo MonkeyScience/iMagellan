@@ -289,6 +289,36 @@ def map_html():
 
 
 
+
+@app.get("/cdn-map-shell.css")
+def cdn_map_shell_css():
+    f = ROOT / "cdn-map-shell.css"
+    if f.exists():
+        return FileResponse(f, media_type="text/css")
+    return JSONResponse({"ok": False, "error": "cdn-map-shell.css missing"}, status_code=404)
+
+def _shell_js(name: str):
+    f = ROOT / name
+    if f.exists():
+        return FileResponse(f, media_type="application/javascript")
+    return JSONResponse({"ok": False, "error": f"{name} missing"}, status_code=404)
+
+@app.get("/cdn-map-shell.p0.js")
+def cdn_map_shell_p0():
+    return _shell_js("cdn-map-shell.p0.js")
+
+@app.get("/cdn-map-shell.p1.js")
+def cdn_map_shell_p1():
+    return _shell_js("cdn-map-shell.p1.js")
+
+@app.get("/cdn-map-shell.p2.js")
+def cdn_map_shell_p2():
+    return _shell_js("cdn-map-shell.p2.js")
+
+@app.get("/cdn-map-shell.p3.js")
+def cdn_map_shell_p3():
+    return _shell_js("cdn-map-shell.p3.js")
+
 @app.get("/cdn-map-shell.html")
 def cdn_map_shell():
     f = ROOT / "cdn-map-shell.html"
@@ -311,7 +341,11 @@ def static_asset(name: str):
     allowed = {
         "brief-app.js", "brief-app.b.js", "brief-app.a.js", "app.js", "brief.js", "scales.js", "inject.js", "map.js",
         "client.js", "sw.js", "icon.svg", "manifest.webmanifest", "map.html",
-        "index.html", "brief.css", "cdn-map-shell.html", "capture-map.html",
+        "index.html", "brief.css", "cdn-map-shell.html", "cdn-map-shell.css", "capture-map.html",
+        "cdn-map-shell.p0.js", "cdn-map-shell.p1.js", "cdn-map-shell.p2.js", "cdn-map-shell.p3.js",
+        "cdn-map-shell.app.js", "cdn-map-shell.part0.js", "cdn-map-shell.part1.js",
+        "cdn-map-shell.part2.js", "cdn-map-shell.part3.js", "cdn-map-shell.part4.js", "cdn-map-shell.part5.js",
+        "cdn-map-shell.a1.js",
     }
     if name not in allowed:
         return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
