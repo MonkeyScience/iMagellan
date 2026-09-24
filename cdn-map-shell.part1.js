@@ -1,4 +1,4 @@
-spawn();
+const P=[],C=[]; for(let i=0;i<360;i++) P.push(spawn()); for(let i=0;i<160;i++) C.push(spawn());
 function resize(){const r=wrapEl.getBoundingClientRect(),dpr=Math.min(1.5,devicePixelRatio||1); W=Math.max(120,Math.round(r.width)); H=Math.max(120,Math.round(r.height)); [bg,fg].forEach(function(c){c.width=Math.max(1,Math.round(W*dpr));c.height=Math.max(1,Math.round(H*dpr));c.style.width=W+"px";c.style.height=H+"px";var cx=c.getContext("2d"); cx.setTransform(dpr,0,0,dpr,0,0);}); dirty=true;}
 const X=function(lo){const s=(LON1-LON0)/cam.z; return (lo-(cam.lon-s/2))/s*W;};
 const Y=function(la){const s=(LAT1-LAT0)/cam.z; return (cam.lat+s/2-la)/s*H;};
@@ -80,5 +80,3 @@ function paintBg(st,boat,s){
   bctx.setLineDash([7,5]); bctx.strokeStyle="#e6b35a"; bctx.lineWidth=2.2; bctx.beginPath();
   WPS.forEach(function(p,i){i?bctx.lineTo(X(p[0]),Y(p[1])):bctx.moveTo(X(p[0]),Y(p[1]));}); bctx.stroke(); bctx.setLineDash([]);
   const bx=X(boat.lon), by=Y(boat.lat), rad=boat.cog*Math.PI/180;
-  bctx.fillStyle="#fff"; bctx.strokeStyle="#111"; bctx.lineWidth=1.4;
-  bctx.beginPath(); bctx.moveTo(bx+Math.sin(rad)*14, by-Math.cos(rad)*14); bctx.lineTo(bx+Math.sin(rad+2.45)*8, by-Math.cos(rad+2.45)*8); bctx.lineTo(bx+Math.sin(rad-2
