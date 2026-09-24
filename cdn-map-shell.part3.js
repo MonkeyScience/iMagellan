@@ -1,3 +1,5 @@
+  paintTideGraph(document.getElementById("tg"), min, eta, {compact:false});
+  var tip=document.getElementById("tgTip"); if(tip) tip.textContent=hhmm(min)+"  ·  SPP "+hs.toFixed(2)+" m  ·  St-Malo "+hm.toFixed(2)+" m CD";
   var strip=document.getElementById("tideStrip");
   var tideCb=document.getElementById("tideOnMap");
   if(strip && tideCb && tideCb.checked){
@@ -66,4 +68,3 @@ document.getElementById("gps").onclick=function(){
   if(watch){navigator.geolocation.clearWatch(watch);watch=null;GPS=null;document.getElementById("follow").checked=false;document.getElementById("gpsstat").textContent="GPS off — tap GPS";dirty=true;return;}
   if(!navigator.geolocation){document.getElementById("gpsstat").textContent="no GPS";return;}
   document.getElementById("gpsstat").textContent="asking…";
-  watch=navigator.geolocation.watchPosition(function(p){ GPS={lat:p.coords.latitude,lon:p.coords.longitude}; if(document.getElementById("follow").checked) snapFollow(); else document.getElementById("gpsstat").textContent="fix "+GPS.lat.toFixed(3)+"N "+Math.abs(GPS.lon).toFixed(3)+"W"; dirty=true; }, function(){document.getElementById("gpsstat").textContent="GPS blocked";},{enableHighAccuracy:true,maximumAge:2000,timeout:12000});
