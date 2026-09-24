@@ -149,15 +149,4 @@ canvas.wg{width:100%;height:168px;background:#101820;border-radius:10px;margin:8
 <button data-p="routes">Route</button>
 </div>
 </div>
-<script>
-(async function(){
-  var parts = ["/cdn-map-shell.part0.js","/cdn-map-shell.part1.js","/cdn-map-shell.part2.js"];
-  var code = '';
-  for (var i=0;i<parts.length;i++){
-    var r = await fetch(parts[i]+'?v=tide1', {cache:'no-store'});
-    if(!r.ok) throw new Error('part '+i);
-    code += await r.text();
-  }
-  (0, eval)(code);
-})().catch(function(e){ console.error(e); document.body.insertAdjacentHTML('beforeend','<pre style="color:#fb7185;padding:12px">Map shell failed to load parts. '+e+'</pre>'); });
-</script></body></html>
+<script src="/cdn-map-shell.app.js?v=tide6"></script></body></html>
