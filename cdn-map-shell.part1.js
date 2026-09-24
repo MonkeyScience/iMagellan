@@ -1,7 +1,9 @@
 const P=[],C=[]; for(let i=0;i<360;i++) P.push(spawn()); for(let i=0;i<160;i++) C.push(spawn());
 function resize(){const r=wrapEl.getBoundingClientRect(),dpr=Math.min(1.5,devicePixelRatio||1); W=Math.max(120,Math.round(r.width)); H=Math.max(120,Math.round(r.height)); [bg,fg].forEach(function(c){c.width=Math.max(1,Math.round(W*dpr));c.height=Math.max(1,Math.round(H*dpr));c.style.width=W+"px";c.style.height=H+"px";var cx=c.getContext("2d"); cx.setTransform(dpr,0,0,dpr,0,0);}); dirty=true;}
-const X=function(lo){const s=(LON1-LON0)/cam.z; return (lo-(cam.lon-s/2))/s*W;};
-const Y=function(la){const s=(LAT1-LAT0)/cam.z; return (cam.lat+s/2-la)/s*H;};
+function mercY(lat){const r=Math.min(85.05,Math.max(-85.05,lat))*Math.PI/180;return Math.log(Math.tan(Math.PI/4+r/2));}
+function view(){const sLat=(LAT1-LAT0)/cam.z;const m0=mercY(cam.lat-sLat/2),m1=mercY(cam.lat+sLat/2);const pxPerMerc=H/Math.max(1e-9,m1-m0);const pxPerDegLon=pxPerMerc*Math.PI/180;return{sLat:sLat,sLon:W/pxPerDegLon,pxPerMerc:pxPerMerc,pxPerDegLon:pxPerDegLon};}
+const X=function(lo){const v=view();return W/2+(lo-cam.lon)*v.pxPerDegLon;};
+const Y=function(la){const v=view();return H/2-(mercY(la)-mercY(cam.lat))*v.pxPerMerc;};
 function lon2x(lon,z){return (lon+180)/360*Math.pow(2,z);}
 function lat2y(lat,z){const r=lat*Math.PI/180; return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*Math.pow(2,z);}
 function tileUrl(z,x,y){
@@ -10,8 +12,9 @@ function tileUrl(z,x,y){
 }
 function drawTiles(){
   const z=Math.max(8, Math.min(13, Math.round(8+cam.z*1.6)));
-  const x0=lon2x(cam.lon-(LON1-LON0)/(2*cam.z), z), x1=lon2x(cam.lon+(LON1-LON0)/(2*cam.z), z);
-  const y0=lat2y(cam.lat+(LAT1-LAT0)/(2*cam.z), z), y1=lat2y(cam.lat-(LAT1-LAT0)/(2*cam.z), z);
+  const v=view();
+  const x0=lon2x(cam.lon-v.sLon/2, z), x1=lon2x(cam.lon+v.sLon/2, z);
+  const y0=lat2y(cam.lat+v.sLat/2, z), y1=lat2y(cam.lat-v.sLat/2, z);
   for(let x=Math.floor(x0)-1; x<=Math.floor(x1)+1; x++){
     for(let y=Math.floor(y0)-1; y<=Math.floor(y1)+1; y++){
       const key=mapStyle+"/"+z+"/"+x+"/"+y; let im=tileCache[key];
@@ -53,8 +56,9 @@ function drawShafts(s){
 
 function drawSeamarks(){
   const z=Math.max(9, Math.min(13, Math.round(8+cam.z*1.6)));
-  const x0=lon2x(cam.lon-(LON1-LON0)/(2*cam.z), z), x1=lon2x(cam.lon+(LON1-LON0)/(2*cam.z), z);
-  const y0=lat2y(cam.lat+(LAT1-LAT0)/(2*cam.z), z), y1=lat2y(cam.lat-(LAT1-LAT0)/(2*cam.z), z);
+  const v=view();
+  const x0=lon2x(cam.lon-v.sLon/2, z), x1=lon2x(cam.lon+v.sLon/2, z);
+  const y0=lat2y(cam.lat+v.sLat/2, z), y1=lat2y(cam.lat-v.sLat/2, z);
   for(let x=Math.floor(x0)-1; x<=Math.floor(x1)+1; x++){
     for(let y=Math.floor(y0)-1; y<=Math.floor(y1)+1; y++){
       const key="sea/"+z+"/"+x+"/"+y; let im=tileCache[key];
@@ -76,7 +80,3 @@ function paintBg(st,boat,s){
   bctx.font="bold 12px sans-serif"; bctx.textAlign="center";
   [["Guernsey",-2.58,49.468],["Jersey",-2.12,49.215],["Sablons",-2.02,48.655]].forEach(function(a){halo(a[0],X(a[1]),Y(a[2]));});
   HAZ.forEach(function(h){ bctx.font="bold 10px sans-serif"; halo(h[2], X(h[0]), Y(h[1])); });
-  drawShafts(s);
-  bctx.setLineDash([7,5]); bctx.strokeStyle="#e6b35a"; bctx.lineWidth=2.2; bctx.beginPath();
-  WPS.forEach(function(p,i){i?bctx.lineTo(X(p[0]),Y(p[1])):bctx.moveTo(X(p[0]),Y(p[1]));}); bctx.stroke(); bctx.setLineDash([]);
-  const bx=X(boat.lon), by=Y(boat.lat), rad=boat.cog*Math.PI/180;
