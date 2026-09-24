@@ -33,7 +33,6 @@
   <script>
   (function () {
     var q = location.search || "";
-    // Prefer full local map shell (UI + OpenSeaMap seamarks). Skip bare Leaflet stub. Fall back to pinned CDN.
     var LOCAL = "/cdn-map-shell.html" + q;
     var PIN = "https://cdn.jsdelivr.net/gh/MonkeyScience/iMagellan@d367c87594740177f7ddbb664b005b65a835b40e/index.html";
     function injectBack() {
@@ -64,13 +63,18 @@
       );
       return html;
     }
+    function usable(html) {
+      if (!html || html.indexOf("PLACEHOLDER") >= 0) return false;
+      if (html.length < 2000) return false;
+      if (html.indexOf("leaflet") >= 0 && html.indexOf('id="tg"') < 0 && html.indexOf("id='tg'") < 0 && html.indexOf('id="t"') < 0) return false;
+      if (html.indexOf("tideOnMap") >= 0 || html.indexOf("Tide graph") >= 0) return true;
+      if (html.indexOf('id="tg"') >= 0 || html.indexOf('id="t"') >= 0 || html.indexOf("mapwrap") >= 0) return true;
+      return false;
+    }
     fetch(LOCAL, { cache: "no-store" })
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
       .then(function (html) {
-        // Skip bare Leaflet stub from the failed restore — use full CDN UI instead.
-        if (html.indexOf("leaflet") >= 0 && html.indexOf('id="tg"') < 0 && html.indexOf("id='tg'") < 0 && html.indexOf('id="t"') < 0) {
-          throw new Error("bare-leaflet");
-        }
+        if (!usable(html)) throw new Error("bad-local");
         write(html);
       })
       .catch(function () {
