@@ -1,3 +1,13 @@
+  if(arrow.length>=2){
+    fromKey = matchPortKey(arrow[0]);
+    toKey = matchPortKey(arrow.slice(1).join(" to "));
+  } else {
+    toKey = matchPortKey(s);
+  }
+  var fm = s.match(/\bfrom\s+([a-z0-9 .'-]{2,40}?)(?:\s+to\b|$)/);
+  if(fm){ var fk=matchPortKey(fm[1]); if(fk) fromKey=fk; }
+
+  var rf=document.getElementById("rfrom"), rt=document.getElementById("rto");
   if(fromKey && rf){ rf.value=fromKey; found.push("from "+PORTS[fromKey].n); }
   else if(rf && rf.value){ assumed.push("from "+(PORTS[rf.value]?PORTS[rf.value].n:rf.value)); }
   if(toKey && rt){ rt.value=toKey; found.push("to "+PORTS[toKey].n); }
