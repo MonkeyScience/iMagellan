@@ -1,3 +1,7 @@
+  drawShafts(s);
+  bctx.setLineDash([7,5]); bctx.strokeStyle="#e6b35a"; bctx.lineWidth=2.2; bctx.beginPath();
+  WPS.forEach(function(p,i){i?bctx.lineTo(X(p[0]),Y(p[1])):bctx.moveTo(X(p[0]),Y(p[1]));}); bctx.stroke(); bctx.setLineDash([]);
+  const bx=X(boat.lon), by=Y(boat.lat), rad=boat.cog*Math.PI/180;
   bctx.fillStyle="#fff"; bctx.strokeStyle="#111"; bctx.lineWidth=1.4;
   bctx.beginPath(); bctx.moveTo(bx+Math.sin(rad)*14, by-Math.cos(rad)*14); bctx.lineTo(bx+Math.sin(rad+2.45)*8, by-Math.cos(rad+2.45)*8); bctx.lineTo(bx+Math.sin(rad-2.45)*8, by-Math.cos(rad-2.45)*8); bctx.closePath(); bctx.fill(); bctx.stroke();
   if(GPS){const gx=X(GPS.lon), gy=Y(GPS.lat); bctx.strokeStyle="#67e8f9"; bctx.lineWidth=2; bctx.beginPath(); bctx.arc(gx,gy,10,0,6.28); bctx.stroke(); bctx.fillStyle="#67e8f9"; bctx.beginPath(); bctx.arc(gx,gy,3,0,6.28); bctx.fill();}
@@ -59,5 +63,3 @@ function paintPages(min,eta){
   const mhw=nearestHW(MAL,min), md=min-mhw[0];
   document.getElementById("lock").innerHTML=((md>=-150&&md<=90)?"in":"no in")+" / "+((md>=-120&&md<=120)?"out":"no out")+" · HW "+hhmm(mhw[0]);
   document.getElementById("portStr").textContent=s.kn.toFixed(1)+" kn "+cardDir(s.dir)+" "+s.phase;
-  paintTideGraph(document.getElementById("tg"), min, eta, {compact:false});
-  var tip=document.getElementById("tgTip"); if(tip) tip.textContent=hhmm(min)+"  ·  SPP "+hs.toFixed(2)+" m  ·  St-Malo "+hm.toFixed(2)+" m CD";
