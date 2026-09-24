@@ -33,7 +33,7 @@
   <script>
   (function () {
     var q = location.search || "";
-    // Prefer full local map shell (UI + OpenSeaMap seamarks). Fall back to pinned CDN.
+    // Prefer full local map shell (UI + OpenSeaMap seamarks). Skip bare Leaflet stub. Fall back to pinned CDN.
     var LOCAL = "/cdn-map-shell.html" + q;
     var PIN = "https://cdn.jsdelivr.net/gh/MonkeyScience/iMagellan@d367c87594740177f7ddbb664b005b65a835b40e/index.html";
     function injectBack() {
@@ -54,26 +54,33 @@
       document.close();
       injectBack();
     }
+    function patchCdn(html) {
+      html = html.replace("function streamAt(min){", "function streamAt(min){if(window.__smocAt){var u=window.__smocAt(min);if(u)return u;}");
+      html = html.replace("slack-safe stream", "8 km stream");
+      html = html.replace("function stateAt(min){", "function stateAt(min){min=((+min%1440)+1440)%1440;");
+      html = html.replace(
+        "const kn=s.kn*st[2], rad=s.dir*Math.PI/180, len=6+kn*20;",
+        "var loc=window.__smocStn?window.__smocStn(st[0],st[1],s):null;const kn=(loc?loc.kn:s.kn*st[2]), rad=(loc?loc.dir:s.dir)*Math.PI/180, len=6+kn*20;"
+      );
+      return html;
+    }
     fetch(LOCAL, { cache: "no-store" })
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
-      .then(write)
+      .then(function (html) {
+        // Skip bare Leaflet stub from the failed restore — use full CDN UI instead.
+        if (html.indexOf("leaflet") >= 0 && html.indexOf('id="tg"') < 0 && html.indexOf("id='tg'") < 0 && html.indexOf('id="t"') < 0) {
+          throw new Error("bare-leaflet");
+        }
+        write(html);
+      })
       .catch(function () {
         fetch(PIN, { cache: "no-store" })
           .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
-          .then(function (html) {
-            html = html.replace("function streamAt(min){", "function streamAt(min){if(window.__smocAt){var u=window.__smocAt(min);if(u)return u;}");
-            html = html.replace("slack-safe stream", "8 km stream");
-            html = html.replace("function stateAt(min){", "function stateAt(min){min=((+min%1440)+1440)%1440;");
-            html = html.replace(
-              "const kn=s.kn*st[2], rad=s.dir*Math.PI/180, len=6+kn*20;",
-              "var loc=window.__smocStn?window.__smocStn(st[0],st[1],s):null;const kn=(loc?loc.kn:s.kn*st[2]), rad=(loc?loc.dir:s.dir)*Math.PI/180, len=6+kn*20;"
-            );
-            write(html);
-          })
+          .then(function (html) { write(patchCdn(html)); })
           .catch(function () {
             var f = document.getElementById("fallback");
             if (f) {
-              f.innerHTML = "Map shell could not load. Use the <a href=\"/\" style=\"color:#e6b35a\">Live brief</a> — it does not need the legacy shell. <code>NOT A CHART · PLOTTER PRIMARY</code>";
+              f.innerHTML = 'Map shell could not load. Use the <a href="/" style="color:#e6b35a">Live brief</a> — it does not need the legacy shell. <code>NOT A CHART · PLOTTER PRIMARY</code>';
             }
           });
       });
