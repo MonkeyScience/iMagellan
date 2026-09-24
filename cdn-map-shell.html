@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <title>iMagellan</title>
 <meta name="theme-color" content="#0a4a58"/>
-<link rel="stylesheet" href="/cdn-map-shell.css?v=tide7"/></head>
+<link rel="stylesheet" href="/cdn-map-shell.css?v=aspect1"/></head>
 <body>
 <div id="app">
 <div id="view-map" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden">
@@ -93,7 +93,7 @@
   var parts=["/cdn-map-shell.part0.js","/cdn-map-shell.part1.js","/cdn-map-shell.part2.js","/cdn-map-shell.part3.js","/cdn-map-shell.part4.js","/cdn-map-shell.part5.js"];
   var code='';
   for (var i=0;i<parts.length;i++){
-    var r=await fetch(parts[i]+'?v=tide7',{cache:'no-store'});
+    var r=await fetch(parts[i]+'?v=aspect1',{cache:'no-store'});
     if(!r.ok) throw new Error(parts[i]+' '+r.status);
     code+=await r.text();
   }
