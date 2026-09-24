@@ -48,4 +48,3 @@ function wash(kn){ if(kn<10)return"rgba(125,255,122,0.12)"; if(kn<16)return"rgba
 const bg=document.getElementById("bg"), fg=document.getElementById("fg"), wrapEl=document.getElementById("mapwrap");
 const bctx=bg.getContext("2d"), fctx=fg.getContext("2d");
 const cam={z:1.8,lon:-2.42,lat:49.22}; let W=300,H=300,dirty=true; window.__cam=cam; Object.defineProperty(window,'__dirty',{get(){return dirty;},set(v){dirty=v;}});
-const P=[],C=[]; for(let i=0;i<360;i++) P.push(spawn()); for(let i=0;i<160;i++) C.push(
