@@ -33,14 +33,16 @@
   <script>
   (function () {
     var q = location.search || "";
-    // Prefer local shell (OpenSeaMap seamarks + tall tide scales + prompt). Fall back to pinned CDN.
+    // Prefer full local map shell (UI + OpenSeaMap seamarks). Fall back to pinned CDN.
     var LOCAL = "/cdn-map-shell.html" + q;
     var PIN = "https://cdn.jsdelivr.net/gh/MonkeyScience/iMagellan@d367c87594740177f7ddbb664b005b65a835b40e/index.html";
     function injectBack() {
-      var bar = document.createElement("div");
-      bar.style.cssText = "position:fixed;top:8px;left:8px;z-index:9999;background:rgba(7,16,24,.9);border:1px solid rgba(230,179,90,.4);border-radius:100px;padding:6px 12px;font:12px system-ui";
-      bar.innerHTML = '<a href="/" style="color:#e6b35a;text-decoration:none">← Live brief</a>';
-      document.body.appendChild(bar);
+      if (!document.querySelector('a[href="/"]')) {
+        var bar = document.createElement("div");
+        bar.style.cssText = "position:fixed;top:8px;left:8px;z-index:9999;background:rgba(7,16,24,.9);border:1px solid rgba(230,179,90,.4);border-radius:100px;padding:6px 12px;font:12px system-ui";
+        bar.innerHTML = '<a href="/" style="color:#e6b35a;text-decoration:none">← Live brief</a>';
+        document.body.appendChild(bar);
+      }
       var s = document.createElement("script");
       s.src = "/app.js?v=brief2";
       s.onerror = function () { console.warn("app.js missing"); };
