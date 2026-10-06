@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <title>iMagellan</title>
 <meta name="theme-color" content="#0a4a58"/>
-<link rel="stylesheet" href="/cdn-map-shell.css?v=aspect1"/></head>
+<link rel="stylesheet" href="/cdn-map-shell.css?v=acc1"/></head>
 <body>
 <div id="app">
 <div id="view-map" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden">
@@ -42,7 +42,7 @@
 </div></div>
 <div id="view-tides" class="page">
 <h2>Tides at <span id="tideClock">--</span></h2>
-<p id="tideHint">Teal = SPP. Orange = St-Malo. Scale metres CD. Gold = time. Markers = journey.</p>
+<p id="tideHint">Teal = SPP. Orange = St-Malo. Metres CD, UK time. Gold = time. Markers = journey.</p>
 <canvas class="tg" id="tg"></canvas>
 <div id="tgTip" style="font-size:11px;color:#e6b35a;min-height:16px">Tap graph for a reading</div>
 <div class="kv">
@@ -90,10 +90,10 @@
 </div>
 <script>
 (async function(){
-  var parts=["/cdn-map-shell.part0.js","/cdn-map-shell.part1.js","/cdn-map-shell.part2.js","/cdn-map-shell.part3.js","/cdn-map-shell.part4.js","/cdn-map-shell.part5.js"];
+  var parts=["/cdn-map-shell.part0.js","/cdn-map-shell.part1.js","/cdn-map-shell.part2.js","/cdn-map-shell.part3.js","/cdn-map-shell.part4.js","/cdn-map-shell.part5.js","/cdn-map-shell.part6.js","/cdn-map-shell.part7.js"];
   var code='';
   for (var i=0;i<parts.length;i++){
-    var r=await fetch(parts[i]+'?v=aspect1',{cache:'no-store'});
+    var r=await fetch(parts[i]+'?v=acc1',{cache:'no-store'});
     if(!r.ok) throw new Error(parts[i]+' '+r.status);
     code+=await r.text();
   }
