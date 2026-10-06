@@ -1,78 +1,67 @@
-  watch=navigator.geolocation.watchPosition(function(p){ GPS={lat:p.coords.latitude,lon:p.coords.longitude}; if(document.getElementById("follow").checked) snapFollow(); else document.getElementById("gpsstat").textContent="fix "+GPS.lat.toFixed(3)+"N "+Math.abs(GPS.lon).toFixed(3)+"W"; dirty=true; }, function(){document.getElementById("gpsstat").textContent="GPS blocked";},{enableHighAccuracy:true,maximumAge:2000,timeout:12000});
-};
-document.getElementById("z").addEventListener("input",function(){dirty=true;});
-document.getElementById("style").onchange=function(){mapStyle=this.value; dirty=true;};
-document.getElementById("ccol").onchange=function(){dirty=true;};
-document.getElementById("zi").onclick=function(){document.getElementById("z").value=Math.min(60,+document.getElementById("z").value+4);dirty=true;};
-document.getElementById("zo").onclick=function(){document.getElementById("z").value=Math.max(10,+document.getElementById("z").value-4);dirty=true;};
-document.getElementById("now").onclick=function(){document.getElementById("t").value=nowMin(); dropFollow(); dirty=true;};
-let drag=null;
-bg.addEventListener("pointerdown",function(ev){drag={x:ev.clientX,y:ev.clientY,lon:cam.lon,lat:cam.lat};});
-bg.addEventListener("pointerup",function(){drag=null;});
-bg.addEventListener("pointermove",function(ev){if(!drag)return; dropFollow(); const v=view(); cam.lon=drag.lon-(ev.clientX-drag.x)/W*v.sLon; cam.lat=drag.lat+(ev.clientY-drag.y)/H*v.sLat; dirty=true;});
-document.querySelectorAll("#nav button").forEach(function(b){b.onclick=function(){document.querySelectorAll("#nav button").forEach(function(x){x.classList.remove("on");}); b.classList.add("on"); const p=b.dataset.p; document.getElementById("view-map").style.display=p==="map"?"flex":"none"; ["tides","ports","routes"].forEach(function(n){document.getElementById("view-"+n).classList.toggle("on",p===n);}); dirty=true; if(p==="map") resize();};});
-async function loadLive(){try{const u="https://api.open-meteo.com/v1/forecast?latitude=49.30&longitude=-2.43&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn&timezone=Europe/London&forecast_days=1"; const w=await (await fetch(u)).json(); const hours=(w.hourly.time||[]).map(function(s,i){const hm=s.split("T")[1].split(":"); return {min:(+hm[0])*60+(+hm[1]||0), tws:w.hourly.wind_speed_10m[i], twd:w.hourly.wind_direction_10m[i], gust:w.hourly.wind_gusts_10m[i], hs:1.4};}); if(hours.length>3){LIVE=hours;TABDEP=-1;TABLE=null;document.getElementById("src").textContent="LIVE wind · 8 km stream";rebuildHours(+document.getElementById("dep").value);dirty=true;}}catch(e){}}
-
-function normPrompt(s){
-  return (s||"").toLowerCase()
-    .replace(/[\u2013\u2014]/g,"-")
-    .replace(/[\u2019']/g,"'")
-    .replace(/\bst[- ]?malo\b/g,"st-malo")
-    .replace(/\bst[- ]?peter\b/g,"st peter")
-    .replace(/\bst[- ]?helier\b/g,"st helier")
-    .replace(/\bles[- ]?sablons\b/g,"les sablons")
-    .replace(/\s+/g," ").trim();
+  for(let m=0;m<=hi;m+=2){ const y=padT+(1-m/hi)*(h-padT-padB); ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke(); ctx.fillText(m+(opts.compact?"":" m"), 2, y+3); }
+  const ys=padT+(1-2/hi)*(h-padT-padB); ctx.strokeStyle="rgba(237,107,69,.55)"; ctx.setLineDash([4,3]); ctx.beginPath(); ctx.moveTo(padL,ys); ctx.lineTo(w-padR,ys); ctx.stroke(); ctx.setLineDash([]);
+  if(opts.compact){ ctx.fillStyle="rgba(237,107,69,.8)"; ctx.font="8px sans-serif"; ctx.fillText("sill", padL+2, ys-2); }
+  let any=false;
+  function draw(id,col){ ctx.strokeStyle=col; ctx.lineWidth=opts.compact?1.8:2; let pen=false, est=null;
+    for(let m=0;m<=span;m+=10){ const v=tideAt(id,m); if(v==null){ if(pen){ctx.stroke(); pen=false;} continue; } any=true;
+      const e=tideEst(id,m), x=padL+m/span*(w-padL-padR), y=padT+(1-Math.min(hi,v)/hi)*(h-padT-padB);
+      if(!pen||e!==est){ if(pen){ctx.lineTo(x,y); ctx.stroke();} ctx.setLineDash(e?[3,3]:[]); ctx.beginPath(); ctx.moveTo(x,y); pen=true; est=e; } else ctx.lineTo(x,y); }
+    if(pen) ctx.stroke(); ctx.setLineDash([]); }
+  draw(SPP,"#7dd3c7"); draw(MAL,"#fb923c");
+  if(!any){ ctx.fillStyle="#fb7185"; ctx.font="bold "+(opts.compact?"10":"12")+"px sans-serif"; ctx.textAlign="center"; ctx.fillText(TIDE?"TIDE DATA UNAVAILABLE":"loading tides…", (padL+w-padR)/2, h/2); ctx.textAlign="left"; }
+  const dep=+document.getElementById("dep").value;
+  [["Leave · Russell",dep,"#c4ec56"],["Minquiers",dep+180,"#e6b35a"],["Arrive · Sablons",eta,"#fb923c"]].forEach(function(mk){
+    const x=padL+Math.max(0,Math.min(span,mk[1]))/span*(w-padL-padR);
+    ctx.strokeStyle=mk[2]; ctx.globalAlpha=.85; ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,h-padB); ctx.stroke(); ctx.globalAlpha=1;
+    ctx.fillStyle=mk[2]; ctx.font="8px sans-serif"; ctx.textAlign="center"; ctx.fillText(mk[0], x, padT+8);
+  });
+  const x=padL+(((min%1440)+1440)%1440)/span*(w-padL-padR); ctx.strokeStyle="#e6b35a"; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,h-padB); ctx.stroke();
+  ctx.fillStyle="#9bb0c3"; ctx.textAlign="center"; ctx.font="9px sans-serif";
+  [0,720,1440,2160].forEach(function(m){ ctx.fillText(hhmm(m%1440), padL+m/span*(w-padL-padR), h-3); });
 }
-function matchPortKey(s){
-  if(/\b(les\s+)?sablons\b|\bst-malo\b|\bstmalo\b|\bsain?t\s*malo\b/.test(s)) return "sablons";
-  if(/\bgranville\b|\bgranvill\b/.test(s)) return "granville";
-  if(/\bcarteret\b|\bcarte?ret\b/.test(s)) return "carteret";
-  if(/\bsark\b|\bsercq\b/.test(s)) return "sark";
-  if(/\bst\s*helier\b|\bhelier\b|\bjers(e|ey)\s*(harbour|port)?\b/.test(s)) return "helier";
-  if(/\bspp\b|\bst\s*peter\s*port\b|\bguernsey\b|\bst\s*pp\b/.test(s)) return "spp";
-  return null;
-}
-function parseLeaveMin(s){
-  var m, h, mi, ap="";
-  // Compact HHMM first: leaving at 0640 / depart 650
-  m = s.match(/(?:leav\w*|depart\w*|dep(?:arture)?|sail\w*)\s*(?:at\s+|around\s+|about\s+|~)?(\d{3,4})(?!\d)/);
-  if(m){
-    var raw=m[1];
-    if(raw.length===3){ h=+raw[0]; mi=+raw.slice(1); } else { h=+raw.slice(0,2); mi=+raw.slice(2); }
-    if(h<=23 && mi<=59) return h*60+mi;
+function tsrc(id,min){const k=tideKind(id); if(k!=="loading"&&tideAt(id,min)==null) return "no data at this time";return k==="official"?"official":(k==="model"?"MODEL ESTIMATE":(k==="mixed"?"official + model est.":(k==="loading"?"loading":"no data")));}
+function paintPages(min,eta,s){
+  const hs=tideAt(SPP,min), hm=tideAt(MAL,min); s=s||streamAt(min);
+  const es=tideEst(SPP,min), em=tideEst(MAL,min);
+  document.getElementById("tideClock").textContent=hhmm(min);
+  document.getElementById("portClock").textContent=hhmm(min);
+  document.getElementById("sppNow").textContent=hs==null?"tide data unavailable":hs.toFixed(1)+" m CD"+(es?" (model est.)":"");
+  document.getElementById("malNow").textContent=hm==null?"tide data unavailable":hm.toFixed(1)+" m CD"+(em?" (model est.)":"");
+  document.getElementById("sppNext").textContent=nextExt(SPP,min);
+  document.getElementById("malNext").textContent=nextExt(MAL,min);
+  var hint=document.getElementById("tideHint"); if(hint) hint.textContent="Teal = SPP ("+tsrc(SPP,min)+"). Orange = St-Malo ("+tsrc(MAL,min)+"). Metres CD, UK time. Dashed = model estimate. Gold = time. Markers = journey.";
+  document.getElementById("sill").innerHTML=hm==null?"<span class='no'>tide data unavailable · sill check not possible — do not assume clear</span>":((hm>=2?"<span class='ok'>above sill</span>":"<span class='no'>at / below sill</span>")+" · "+hm.toFixed(1)+" m"+(em?" (model est.)":""));
+  const hw=nearestHW(SPP,min);
+  document.getElementById("vic").innerHTML=hw?((Math.abs(min-hw[0])<=180?"<span class='ok'>inside</span>":"<span class='no'>outside</span>")+" · HW "+hhmm(hw[0])):"<span class='no'>no tide data</span>";
+  const mhw=nearestHW(MAL,min);
+  if(mhw){const md=min-mhw[0]; document.getElementById("lock").innerHTML=((md>=-150&&md<=90)?"in":"no in")+" / "+((md>=-120&&md<=120)?"out":"no out")+" · HW "+hhmm(mhw[0]);} else document.getElementById("lock").innerHTML="<span class='no'>no tide data</span>";
+  document.getElementById("portStr").textContent=s.none?"no stream data":(s.kn.toFixed(1)+" kn "+cardDir(s.dir)+" "+s.phase);
+  paintTideGraph(document.getElementById("tg"), min, eta, {compact:false});
+  var tip=document.getElementById("tgTip"); if(tip) tip.textContent=hhmm(min)+"  ·  SPP "+fmtH(hs,2)+(es?" est":"")+"  ·  St-Malo "+fmtH(hm,2)+(em?" est":"")+" CD";
+  var strip=document.getElementById("tideStrip");
+  var tideCb=document.getElementById("tideOnMap");
+  if(strip && tideCb && tideCb.checked){
+    paintTideGraph(document.getElementById("tgMap"), min, eta, {compact:true});
+    var rn=document.getElementById("tideReadNow");
+    var rx=document.getElementById("tideReadNext");
+    if(rn) rn.innerHTML=(hs==null&&hm==null)?"<b style='color:#fb7185'>Tide data unavailable</b>":"<b>Now</b> SPP "+fmtH(hs)+(es?" est":"")+" · St-Malo "+fmtH(hm)+(em?" est":"")+" CD"+((es||em||tideKind(SPP)==="model"||tideKind(MAL)==="model")?" · <b style='color:#fbbf24'>MODEL ESTIMATE</b>":" · official");
+    if(rx) rx.innerHTML="<b>Next</b> SPP "+nextExt(SPP,min)+" · Mal "+nextExt(MAL,min);
   }
-  m = s.match(/(?:leav\w*|depart\w*|dep(?:arture)?|sail\w*)\s*(?:at\s+|around\s+|about\s+|~)?(\d{1,2})(?:[:.](\d{2}))\s*(a\.?\s*m\.?|p\.?\s*m\.?)?/);
-  if(!m) m = s.match(/\b(\d{1,2})[:.](\d{2})\s*(a\.?\s*m\.?|p\.?\s*m\.?)?\b/);
-  if(!m) m = s.match(/(?:leav\w*|depart\w*|dep(?:arture)?|sail\w*)\s*(?:at\s+|around\s+|about\s+|~)?(\d{1,2})(?!\d)\s*(a\.?\s*m\.?|p\.?\s*m\.?)?/);
-  if(!m) m = s.match(/\b(\d{1,2})\s*(a\.?\s*m\.?|p\.?\s*m\.?)\b/);
-  if(!m) return null;
-  h=+m[1]; mi=m[2]!=null && /^\d{2}$/.test(String(m[2])) ? +m[2] : 0;
-  ap=(m[3]||m[2]&&!/^\d{2}$/.test(String(m[2]))?m[2]:""||"").toString().toLowerCase().replace(/\./g,"").replace(/\s/g,"");
-  if(!ap || /^\d/.test(ap)){ ap=(m[3]||"").toLowerCase().replace(/\./g,"").replace(/\s/g,""); }
-  if(!ap){ var apm=s.match(/\b\d{1,2}(?:[:.]\d{2})?\s*(a\.?\s*m\.?|p\.?\s*m\.?)\b/); if(apm) ap=apm[1].toLowerCase().replace(/\./g,"").replace(/\s/g,""); }
-  if(ap.indexOf("pm")>=0 && h<12) h+=12;
-  if(ap.indexOf("am")>=0 && h===12) h=0;
-  if(!isFinite(h) || h>23 || mi>59) return null;
-  return h*60+mi;
+  paintWindows(min,eta);
 }
-function parseEtaOrDur(s, dep){
-  var m = s.match(/(?:arriv\w*|eta|get\s+in)\s*(?:by\s+|at\s+|around\s+)?(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?/);
-  if(m){
-    var h=+m[1], mi=m[2]!=null?+m[2]:0;
-    var ap=(m[3]||"").toLowerCase().replace(/\./g,"").replace(/\s/g,"");
-    if(ap.indexOf("pm")>=0 && h<12) h+=12;
-    if(ap.indexOf("am")>=0 && h===12) h=0;
-    var eta=h*60+mi; if(dep!=null && eta<dep) eta+=1440;
-    return {eta:eta, dur: dep!=null? eta-dep : null};
-  }
-  m = s.match(/(?:for|about|~|roughly|passage\s+of)\s*(\d{1,2}(?:[.,]\d)?)\s*(?:h(?:ours?)?|hrs?)\b/);
-  if(m && dep!=null){ var hrs=parseFloat(m[1].replace(",",".")); return {eta:dep+Math.round(hrs*60), dur:Math.round(hrs*60)}; }
-  return null;
-}
-function parsePrompt(){
-  var box=document.getElementById("rprompt"); if(!box) return;
-  var s=normPrompt(box.value||"");
-  var assumed=[], found=[], bits=[];
 
-  var fromKey=null, toKey=null;
-  var arrow = s.split(/\bto\b|\u2192|->/);
+function tick(){
+  const min=+document.getElementById("t").value, dep=+document.getElementById("dep").value;
+  cam.z=+document.getElementById("z").value/10;
+  const nm=nmAt(min,dep), boat=posAt(nm), g=sogAt(min,boat.cog,boat.lon,boat.lat), eta=etaMin(dep);
+  document.getElementById("tlab").textContent=hhmm(min);
+  document.getElementById("dlab").textContent=hhmm(dep);
+  document.getElementById("zlab").textContent=cam.z.toFixed(1)+"×";
+  document.getElementById("wv").textContent=g.st.tws.toFixed(1);
+  document.getElementById("wg").textContent=cardDir(g.st.twd)+" G"+g.st.gust.toFixed(0);
+  document.getElementById("sv").textContent=g.s.kn.toFixed(1);
+  document.getElementById("sd").textContent=g.s.none?"no data":(cardDir(g.s.dir)+" "+g.s.phase);
+  document.getElementById("eta").textContent=hhmm(eta);
+  document.getElementById("left").textContent=(TOTAL-nm).toFixed(1)+" nm";
+  document.getElementById("who").textContent=placeAt(nm);
+  if(document.getElementById("follow").checked && GPS){ cam.lon=GPS.lon; cam.lat=GPS.lat; dirty=true; }
