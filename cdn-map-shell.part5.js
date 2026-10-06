@@ -1,120 +1,55 @@
-  if(arrow.length>=2){
-    fromKey = matchPortKey(arrow[0]);
-    toKey = matchPortKey(arrow.slice(1).join(" to "));
-  } else {
-    toKey = matchPortKey(s);
-  }
-  var fm = s.match(/\bfrom\s+([a-z0-9 .'-]{2,40}?)(?:\s+to\b|$)/);
-  if(fm){ var fk=matchPortKey(fm[1]); if(fk) fromKey=fk; }
-
-  var rf=document.getElementById("rfrom"), rt=document.getElementById("rto");
-  if(fromKey && rf){ rf.value=fromKey; found.push("from "+PORTS[fromKey].n); }
-  else if(rf && rf.value){ assumed.push("from "+(PORTS[rf.value]?PORTS[rf.value].n:rf.value)); }
-  if(toKey && rt){ rt.value=toKey; found.push("to "+PORTS[toKey].n); }
-  else if(rt && rt.value){ assumed.push("to "+(PORTS[rt.value]?PORTS[rt.value].n:rt.value)+" (unchanged)"); }
-
-  var east = /east[- ]?about|east\s+of\s+(?:the\s+)?(?:jersey|minquiers|minqs)|via\s+east|e\.?\s*about/.test(s);
-  var west = /west[- ]?about|west\s+of\s+(?:the\s+)?(?:jersey|minquiers|minqs)|via\s+west|w\.?\s*about/.test(s);
-  var viaRuss = /(?:via|through|little)\s+russell|\brussell\b/.test(s) && !/avoid\s+russell|skip\s+russell|no\s+russell/.test(s);
-  var skipRuss = /avoid\s+russell|skip\s+russell|no\s+russell|outside\s+russell/.test(s);
-  var westMin = /west\s+of\s+(?:the\s+)?minquiers|west[- ]?minq/.test(s);
-  var eastMin = /east\s+of\s+(?:the\s+)?minquiers|east[- ]?minq/.test(s);
-  var westJer = /west\s+of\s+jersey/.test(s);
-  var eastJer = /east\s+of\s+jersey/.test(s);
-
-  var r=document.getElementById("vRuss");
-  var wj=document.getElementById("vWJer");
-  var wm=document.getElementById("vWMin");
-  var ej=document.getElementById("vEJer");
-
-  if(skipRuss && r){ r.checked=false; found.push("skip Russell"); }
-  else if(viaRuss && r){ r.checked=true; found.push("via Little Russell"); }
-
-  if(east && !west){
-    if(wj) wj.checked=false;
-    if(wm) wm.checked=false;
-    if(ej) ej.checked=true;
-    found.push("east-about");
-  } else if(west && !east){
-    if(wj) wj.checked=true;
-    if(wm) wm.checked= !eastMin;
-    if(ej) ej.checked=false;
-    found.push("west-about");
-  } else {
-    if(westJer && wj){ wj.checked=true; if(ej) ej.checked=false; found.push("west of Jersey"); }
-    if(eastJer && ej){ ej.checked=true; if(wj) wj.checked=false; found.push("east of Jersey"); }
-    if(westMin && wm){ wm.checked=true; found.push("west of Minquiers"); }
-    if(eastMin && wm){ wm.checked=false; found.push("east of Minquiers"); }
-    if(!westJer && !eastJer && !westMin && !eastMin && !east && !west){
-      assumed.push((ej && ej.checked) ? "east-about (unchanged)" : "west-about (unchanged)");
-    }
-  }
-
-  var depMin = parseLeaveMin(s);
-  if(depMin!=null){
-    var d=document.getElementById("dep");
-    if(d){
-      var lo=+d.min||0, hi=+d.max||1440;
-      var clamped=Math.max(lo, Math.min(hi, depMin));
-      d.value=clamped;
-      if(clamped!==depMin) assumed.push("depart slider clamped to "+hhmm(clamped)+" (asked "+hhmm(depMin)+")");
-      else found.push("leave "+hhmm(depMin));
-    }
-    var tm=document.getElementById("t"); if(tm) tm.value=depMin;
-    TABDEP=-1; TABLE=null;
-    rebuildHours(+document.getElementById("dep").value);
-  } else {
-    assumed.push("leave "+hhmm(+document.getElementById("dep").value)+" (unchanged)");
-  }
-
-  var ed = parseEtaOrDur(s, depMin!=null?depMin:+document.getElementById("dep").value);
-  if(ed && ed.dur!=null){ bits.push("passage ~"+Math.round(ed.dur/60*10)/10+" h \u2192 ETA "+hhmm(ed.eta)); found.push("ETA hint "+hhmm(ed.eta)); }
-
-  if(typeof applyRoute==="function") applyRoute();
-  else if(document.getElementById("rapply")) document.getElementById("rapply").click();
-
-  var summary = (found.length?found.join(" \u00b7 "):"No new fields parsed") + (assumed.length?" \u00b7 assumed: "+assumed.join(", "):"");
-  if(bits.length) summary += " \u00b7 "+bits.join(" \u00b7 ");
-  var out=document.getElementById("rparseOut");
-  if(out) out.textContent=summary;
-  var rs=document.getElementById("rsum");
-  if(rs){
-    var sideTxt = (document.getElementById("vEJer")&&document.getElementById("vEJer").checked)?"east-about":"west-about";
-    rs.textContent=(FROMN||"?")+" \u2192 "+(TON||"?")+" \u00b7 "+sideTxt+" \u00b7 leave "+hhmm(+document.getElementById("dep").value)+" \u00b7 "+TOTAL.toFixed(1)+" nm";
-  }
-  dirty=true;
+  if(dirty){ paintBg(g.st,boat,g.s,min); fctx.clearRect(0,0,W,H); paintPages(min,eta,g.s); dirty=false; }
+  fctx.globalCompositeOperation="destination-out"; fctx.fillStyle="rgba(0,0,0,0.14)"; fctx.fillRect(0,0,W,H);
+  fctx.globalCompositeOperation="source-over"; fctx.lineCap="round";
+  const to=(g.st.twd+180)*Math.PI/180, step=0.00105*(g.st.tws/12);
+  fctx.lineWidth=1.1;
+  for(let i=0;i<P.length;i++){const p=P[i],x0=X(p.lon),y0=Y(p.lat); p.lon+=Math.sin(to)*step; p.lat+=Math.cos(to)*step; p.age++; if(p.age>90||inLand(p.lon,p.lat)){Object.assign(p,spawn());continue;} fctx.strokeStyle="rgba(255,255,255,"+(0.14+0.45*(1-p.age/90))+")"; fctx.beginPath(); fctx.moveTo(x0,y0); fctx.lineTo(X(p.lon),Y(p.lat)); fctx.stroke();}
+  const col=COLS[document.getElementById("ccol").value]||COLS.orange;
+  const rgb=g.s.phase==="flood"?col.f:(g.s.phase==="ebb"?col.e:col.s);
+  const cd=g.s.dir*Math.PI/180, cs=0.00042*g.s.kn;
+  fctx.lineWidth=2.2;
+  for(let i=0;i<C.length;i++){const p=C[i],x0=X(p.lon),y0=Y(p.lat); p.lon+=Math.sin(cd)*cs; p.lat+=Math.cos(cd)*cs; p.age++; if(p.age>110||inLand(p.lon,p.lat)||g.s.kn<0.16){Object.assign(p,spawn());continue;} fctx.strokeStyle="rgba("+rgb+","+(0.35+0.5*(1-p.age/110))+")"; fctx.beginPath(); fctx.moveTo(x0,y0); fctx.lineTo(X(p.lon),Y(p.lat)); fctx.stroke();}
+  requestAnimationFrame(tick);
 }
-
-var _rp=document.getElementById("rparse"); if(_rp) _rp.onclick=parsePrompt;
-(function(){
-  var q=new URLSearchParams(location.search);
-  var seams=document.getElementById("seams");
-  if(seams){
-    if(q.get("seams")==="0") seams.checked=false;
-    if(q.get("seams")==="1") seams.checked=true;
-    try{ var s=localStorage.getItem("imagellan_seams"); if(s==="0") seams.checked=false; if(s==="1") seams.checked=true; }catch(e){}
-    seams.addEventListener("change", function(){ try{ localStorage.setItem("imagellan_seams", seams.checked?"1":"0"); }catch(e){} dirty=true; });
-  }
-  function syncTideStrip(){
-    var cb=document.getElementById("tideOnMap");
-    var strip=document.getElementById("tideStrip");
-    if(!cb||!strip) return;
-    strip.classList.toggle("on", !!cb.checked);
-    try{ localStorage.setItem("imagellan_tide_on_map", cb.checked?"1":"0"); }catch(e){}
-    requestAnimationFrame(function(){ resize(); dirty=true; });
-  }
-  var tide=document.getElementById("tideOnMap");
-  if(tide){
-    try{ var t=localStorage.getItem("imagellan_tide_on_map"); if(t==="0") tide.checked=false; if(t==="1") tide.checked=true; }catch(e){}
-    if(q.get("tide")==="0") tide.checked=false;
-    if(q.get("tide")==="1") tide.checked=true;
-    tide.addEventListener("change", syncTideStrip);
-    syncTideStrip();
-  }
+function rebuildHours(dep){const box=document.getElementById("hours"); box.innerHTML=""; [dep,dep+60,dep+180,dep+360,etaMin(dep)].forEach(function(m,i){const labs=["Dep","+1h","+3h","+6h","ETA"]; const b=document.createElement("button"); b.textContent=labs[i]+" "+hhmm(m); b.onclick=function(){dropFollow(); document.getElementById("t").value=m; dirty=true;}; box.appendChild(b);});}
+function applyRoute(){
+  const a=PORTS[document.getElementById("rfrom").value], b=PORTS[document.getElementById("rto").value];
+  FROMN=a.n; TON=b.n;
+  const pts=[a.p.slice()];
+  if(document.getElementById("vRuss").checked) pts.push(WP_STM.slice());
+  if(document.getElementById("vWJer").checked){ pts.push([-2.45,49.30],[-2.40,49.18]); }
+  if(document.getElementById("vEJer").checked){ pts.push([-2.05,49.29],[-2.00,49.22]); }
+  if(document.getElementById("vWMin").checked){ pts.push([-2.383,48.995],WP_SWM.slice(),[-2.267,48.85]); }
+  if(document.getElementById("rto").value==="sablons") SAB_APP.forEach(function(q){pts.push(q.slice());});
+  pts.push(b.p.slice());
+  WPS=pts; rebuildTrack(); TABLE=null; TABDEP=-1;
+  document.getElementById("rname").value=FROMN+" to "+TON;
+  document.getElementById("rsum").textContent=FROMN+" → "+TON+" · "+TOTAL.toFixed(1)+" nm · "+WPS.length+" wpts";
+  rebuildHours(+document.getElementById("dep").value); dirty=true;
+}
+(function fillPorts(){
+  const f=document.getElementById("rfrom"), t=document.getElementById("rto");
+  Object.keys(PORTS).forEach(function(k){ const o=document.createElement("option"); o.value=k; o.textContent=PORTS[k].n; f.appendChild(o); t.appendChild(o.cloneNode(true)); });
+  f.value="spp"; t.value="sablons";
 })();
-
-addEventListener("resize",resize);
-if(window.visualViewport){ visualViewport.addEventListener("resize",resize); visualViewport.addEventListener("scroll",resize); }
-document.getElementById("t").value=nowMin();
-rebuildHours(410); resize(); loadLive(); tick();
-})();
+document.getElementById("rapply").onclick=applyRoute;
+document.getElementById("dep").addEventListener("input",function(){dropFollow(); TABDEP=-1;TABLE=null;rebuildHours(+this.value);dirty=true;});
+document.getElementById("t").addEventListener("input",function(){dropFollow(); dirty=true;});
+document.getElementById("follow").addEventListener("change",function(){ if(this.checked){ if(!GPS){ document.getElementById("gpsstat").textContent="turn GPS on first"; this.checked=false; return;} snapFollow(); document.getElementById("gpsstat").textContent="following "+GPS.lat.toFixed(3)+"N"; } else document.getElementById("gpsstat").textContent=GPS?"fix parked":"GPS off — tap GPS"; });
+document.getElementById("gps").onclick=function(){
+  if(watch){navigator.geolocation.clearWatch(watch);watch=null;GPS=null;document.getElementById("follow").checked=false;document.getElementById("gpsstat").textContent="GPS off — tap GPS";dirty=true;return;}
+  if(!navigator.geolocation){document.getElementById("gpsstat").textContent="no GPS";return;}
+  document.getElementById("gpsstat").textContent="asking…";
+  watch=navigator.geolocation.watchPosition(function(p){ GPS={lat:p.coords.latitude,lon:p.coords.longitude}; if(document.getElementById("follow").checked) snapFollow(); else document.getElementById("gpsstat").textContent="fix "+GPS.lat.toFixed(3)+"N "+Math.abs(GPS.lon).toFixed(3)+"W"; dirty=true; }, function(){document.getElementById("gpsstat").textContent="GPS blocked";},{enableHighAccuracy:true,maximumAge:2000,timeout:12000});
+};
+document.getElementById("z").addEventListener("input",function(){dirty=true;});
+document.getElementById("style").onchange=function(){mapStyle=this.value; dirty=true;};
+document.getElementById("ccol").onchange=function(){dirty=true;};
+document.getElementById("zi").onclick=function(){document.getElementById("z").value=Math.min(60,+document.getElementById("z").value+4);dirty=true;};
+document.getElementById("zo").onclick=function(){document.getElementById("z").value=Math.max(10,+document.getElementById("z").value-4);dirty=true;};
+document.getElementById("now").onclick=function(){document.getElementById("t").value=nowMin(); dropFollow(); dirty=true;};
+let drag=null;
+bg.addEventListener("pointerdown",function(ev){drag={x:ev.clientX,y:ev.clientY,lon:cam.lon,lat:cam.lat};});
+bg.addEventListener("pointerup",function(){drag=null;});
+bg.addEventListener("pointermove",function(ev){if(!drag)return; dropFollow(); const v=view(); cam.lon=drag.lon-(ev.clientX-drag.x)/W*v.sLon; cam.lat=drag.lat+(ev.clientY-drag.y)/H*v.sLat; dirty=true;});
+document.querySelectorAll("#nav button").forEach(function(b){b.onclick=function(){document.querySelectorAll("#nav button").forEach(function(x){x.classList.remove("on");}); b.classList.add("on"); const p=b.dataset.p; document.getElementById("view-map").style.display=p==="map"?"flex":"none"; ["tides","ports","routes"].forEach(function(n){document.getElementById("view-"+n).classList.toggle("on",p===n);}); dirty=true; if(p==="map") resize();};});
