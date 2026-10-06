@@ -1,65 +1,63 @@
-  drawShafts(s);
-  bctx.setLineDash([7,5]); bctx.strokeStyle="#e6b35a"; bctx.lineWidth=2.2; bctx.beginPath();
-  WPS.forEach(function(p,i){i?bctx.lineTo(X(p[0]),Y(p[1])):bctx.moveTo(X(p[0]),Y(p[1]));}); bctx.stroke(); bctx.setLineDash([]);
-  const bx=X(boat.lon), by=Y(boat.lat), rad=boat.cog*Math.PI/180;
-  bctx.fillStyle="#fff"; bctx.strokeStyle="#111"; bctx.lineWidth=1.4;
-  bctx.beginPath(); bctx.moveTo(bx+Math.sin(rad)*14, by-Math.cos(rad)*14); bctx.lineTo(bx+Math.sin(rad+2.45)*8, by-Math.cos(rad+2.45)*8); bctx.lineTo(bx+Math.sin(rad-2.45)*8, by-Math.cos(rad-2.45)*8); bctx.closePath(); bctx.fill(); bctx.stroke();
-  if(GPS){const gx=X(GPS.lon), gy=Y(GPS.lat); bctx.strokeStyle="#67e8f9"; bctx.lineWidth=2; bctx.beginPath(); bctx.arc(gx,gy,10,0,6.28); bctx.stroke(); bctx.fillStyle="#67e8f9"; bctx.beginPath(); bctx.arc(gx,gy,3,0,6.28); bctx.fill();}
+function inLand(lo,la){for(let i=0;i<LAND.length;i++){const b=LANDBB[i];if(lo<b[0]||lo>b[2]||la<b[1]||la>b[3])continue;if(pip(LAND[i],lo,la))return true;}return false;}
+function spawn(){let lo,la,n=0;do{lo=LON0+Math.random()*(LON1-LON0);la=LAT0+Math.random()*(LAT1-LAT0);n++;}while(inLand(lo,la)&&n<40);return{lon:lo,lat:la,age:Math.random()*80};}
+function stateAt(min){min=((+min%1440)+1440)%1440;const src=LIVE||SNAP; let i=0; while(i<src.length-2 && src[i+1].min<min) i++; const A=src[i],B=src[i+1]||A,t=(min-A.min)/Math.max(1,(B.min||A.min+60)-A.min); const lerp=(a,b)=>a+(b-a)*t; return {tws:lerp(A.tws,B.tws), twd:wrap(A.twd+(((B.twd-A.twd+540)%360)-180)*t), gust:lerp(A.gust||A.tws+3,B.gust||B.tws+3), hs:lerp(A.hs,B.hs)};}
+/* Stream at a position/time comes only from the live model hook in app.js (fixed per-station axis,
+   flood/ebb from per-station flood sets). No synthetic fallback: without data we say so. */
+function streamAt(min,lon,lat){if(window.__smocStn){var u=window.__smocStn(lon==null?-2.22:lon,lat==null?49.08:lat,min);if(u)return u;} return {kn:0,dir:0,signed:0,phase:"no data",none:true};}
+function bsp(tws){ if(tws<6)return 3.2; if(tws<10)return 4.8; if(tws<14)return 5.9; if(tws<18)return 6.5; return 6.0; }
+/* SOG along the track: stream component along COG adds (fair) or subtracts (foul); the cross-track part is
+   crabbed out of the boat speed. dir = direction the stream sets TOWARD at the boat's position and time. */
+function sogFrom(b,s,cog){if(!s||s.none||!(s.kn>0))return b;const th=(s.dir-cog)*Math.PI/180,al=s.kn*Math.cos(th),cr=s.kn*Math.sin(th),w=b*b-cr*cr;return w>0?Math.sqrt(w)+al:al;}
+function sogAt(min,cog,lon,lat){const st=stateAt(min), s=streamAt(min,lon,lat); return {sog:Math.max(0.5, sogFrom(bsp(st.tws),s,cog)), st:st, s:s};}
+window.__sogFrom=sogFrom;
+function buildTable(dep){const rows=[{min:dep,nm:0}]; let nm=0; for(let m=dep;m<dep+16*60 && nm<TOTAL;m+=5){const p=posAt(nm); nm=Math.min(TOTAL, nm+sogAt(m,p.cog,p.lon,p.lat).sog*(5/60)); rows.push({min:m+5,nm:nm});} return rows;}
+function nmAt(min,dep){if(!TABLE||TABDEP!==dep){TABLE=buildTable(dep);TABDEP=dep;} if(min<=dep)return 0; let i=0; while(i<TABLE.length-2 && TABLE[i+1].min<min) i++; const A=TABLE[i],B=TABLE[i+1]||A,t=(min-A.min)/Math.max(1,(B.min-A.min)||1); return A.nm+(B.nm-A.nm)*t;}
+function etaMin(dep){if(!TABLE||TABDEP!==dep){TABLE=buildTable(dep);TABDEP=dep;} const hit=TABLE.find(function(r){return r.nm>=TOTAL-0.05;}); return hit?hit.min:dep+16*60;}
+function wash(kn){ if(kn<10)return"rgba(125,255,122,0.12)"; if(kn<16)return"rgba(183,240,110,0.12)"; return"rgba(215,243,58,0.10)"; }
+const bg=document.getElementById("bg"), fg=document.getElementById("fg"), wrapEl=document.getElementById("mapwrap");
+const bctx=bg.getContext("2d"), fctx=fg.getContext("2d");
+const cam={z:1.8,lon:-2.42,lat:49.22}; let W=300,H=300,dirty=true; window.__cam=cam; Object.defineProperty(window,'__dirty',{get(){return dirty;},set(v){dirty=v;}});
+const P=[],C=[]; for(let i=0;i<360;i++) P.push(spawn()); for(let i=0;i<160;i++) C.push(spawn());
+function resize(){const r=wrapEl.getBoundingClientRect(),dpr=Math.min(1.5,devicePixelRatio||1); W=Math.max(120,Math.round(r.width)); H=Math.max(120,Math.round(r.height)); [bg,fg].forEach(function(c){c.width=Math.max(1,Math.round(W*dpr));c.height=Math.max(1,Math.round(H*dpr));c.style.width=W+"px";c.style.height=H+"px";var cx=c.getContext("2d"); cx.setTransform(dpr,0,0,dpr,0,0);}); dirty=true;}
+function mercY(lat){const r=Math.min(85.05,Math.max(-85.05,lat))*Math.PI/180;return Math.log(Math.tan(Math.PI/4+r/2));}
+function view(){const sLat=(LAT1-LAT0)/cam.z;const m0=mercY(cam.lat-sLat/2),m1=mercY(cam.lat+sLat/2);const pxPerMerc=H/Math.max(1e-9,m1-m0);const pxPerDegLon=pxPerMerc*Math.PI/180;return{sLat:sLat,sLon:W/pxPerDegLon,pxPerMerc:pxPerMerc,pxPerDegLon:pxPerDegLon};}
+const X=function(lo){const v=view();return W/2+(lo-cam.lon)*v.pxPerDegLon;};
+const Y=function(la){const v=view();return H/2-(mercY(la)-mercY(cam.lat))*v.pxPerMerc;};
+function lon2x(lon,z){return (lon+180)/360*Math.pow(2,z);}
+function lat2y(lat,z){const r=lat*Math.PI/180; return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*Math.pow(2,z);}
+function tileUrl(z,x,y){
+  if(mapStyle==="sat") return "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/"+z+"/"+y+"/"+x;
+  return "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/"+z+"/"+y+"/"+x;
 }
-function dropFollow(){const f=document.getElementById("follow"); if(f.checked){f.checked=false; document.getElementById("gpsstat").textContent=GPS?("fix parked · "+GPS.lat.toFixed(3)+"N"):"Follow off"; }}
-function snapFollow(){ if(!GPS) return; cam.lon=GPS.lon; cam.lat=GPS.lat; document.getElementById("t").value=nowMin(); dirty=true; }
-function paintWindows(min,eta){
-  const c=document.getElementById("win"); if(!c) return;
-  const dpr=Math.min(2,devicePixelRatio||1), w=c.clientWidth||320, h=c.clientHeight||168;
-  c.width=w*dpr; c.height=h*dpr; const ctx=c.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.fillStyle="#101820"; ctx.fillRect(0,0,w,h);
-  const t0=300, t1=1440, rows=[["Sablons",function(m){return tideAt(MAL,m)>=2.0;},"#34d399"],["Victoria",function(m){return Math.abs(m-nearestHW(SPP,m)[0])<=180;},"#38bdf8"],["Lock in",function(m){const d=m-nearestHW(MAL,m)[0]; return d>=-150&&d<=90;},"#c084fc"]];
-  rows.forEach(function(r,i){
-    const y=10+i*50; ctx.fillStyle="#9bb0c3"; ctx.font="11px sans-serif"; ctx.fillText(r[0],6,y+8);
-    ctx.fillStyle="#1c2a36"; ctx.fillRect(70,y,w-80,22);
-    ctx.fillStyle=r[2];
-    for(let m=t0;m<t1;m+=8){ if(r[1](m)) ctx.fillRect(70+(m-t0)/(t1-t0)*(w-80), y, 3, 22); }
-    const mark=function(mm,col){const x=70+(mm-t0)/(t1-t0)*(w-80); ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(x,y-2); ctx.lineTo(x,y+24); ctx.stroke();};
-    mark(min,"#e6b35a"); mark(eta,"#fff");
+function drawTiles(){
+  const z=Math.max(8, Math.min(13, Math.round(8+cam.z*1.6)));
+  const v=view();
+  const x0=lon2x(cam.lon-v.sLon/2, z), x1=lon2x(cam.lon+v.sLon/2, z);
+  const y0=lat2y(cam.lat+v.sLat/2, z), y1=lat2y(cam.lat-v.sLat/2, z);
+  for(let x=Math.floor(x0)-1; x<=Math.floor(x1)+1; x++){
+    for(let y=Math.floor(y0)-1; y<=Math.floor(y1)+1; y++){
+      const key=mapStyle+"/"+z+"/"+x+"/"+y; let im=tileCache[key];
+      if(!im){ im=new Image(); im.crossOrigin="anonymous"; im.onload=function(){dirty=true;}; im.src=tileUrl(z,x,y); tileCache[key]=im; }
+      if(!im.complete||!im.naturalWidth) continue;
+      const west=x/Math.pow(2,z)*360-180, east=(x+1)/Math.pow(2,z)*360-180;
+      const n=Math.PI-2*Math.PI*y/Math.pow(2,z), s=Math.PI-2*Math.PI*(y+1)/Math.pow(2,z);
+      const north=180/Math.PI*Math.atan(0.5*(Math.exp(n)-Math.exp(-n)));
+      const south=180/Math.PI*Math.atan(0.5*(Math.exp(s)-Math.exp(-s)));
+      bctx.drawImage(im, X(west), Y(north), X(east)-X(west), Y(south)-Y(north));
+    }
+  }
+}
+function halo(txt,x,y){ bctx.strokeStyle="rgba(0,0,0,0.7)"; bctx.lineWidth=3; bctx.strokeText(txt,x,y); bctx.fillStyle="#fff"; bctx.fillText(txt,x,y); }
+function drawLand(){
+  const path=function(p){bctx.beginPath(); p.forEach(function(q,k){k?bctx.lineTo(X(q[0]),Y(q[1])):bctx.moveTo(X(q[0]),Y(q[1]));}); bctx.closePath();};
+  LAND.forEach(function(p){
+    path(p);
+    if(mapStyle==="vector"){ bctx.fillStyle="#1c2e24"; bctx.fill(); bctx.strokeStyle="#e2e8f0"; bctx.lineWidth=1.1; bctx.stroke(); }
+    else { bctx.strokeStyle="rgba(255,255,255,0.75)"; bctx.lineWidth=1; bctx.stroke(); }
   });
-  ctx.fillStyle="#9bb0c3"; ctx.font="10px sans-serif"; [360,720,1080,1440].forEach(function(m){ctx.fillText(hhmm(m), 62+(m-t0)/(t1-t0)*(w-80), h-4);});
-}
-function paintTideGraph(canvas,min,eta,opts){
-  if(!canvas) return;
-  opts=opts||{};
-  const dpr=Math.min(2,devicePixelRatio||1), w=canvas.clientWidth||320, h=canvas.clientHeight||(opts.compact?118:200);
-  if(w<40||h<40) return;
-  canvas.width=Math.round(w*dpr); canvas.height=Math.round(h*dpr);
-  const ctx=canvas.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.fillStyle="#101820"; ctx.fillRect(0,0,w,h);
-  const padL=opts.compact?22:28, padR=6, padT=opts.compact?12:14, padB=opts.compact?16:20, hi=10, span=2160;
-  ctx.strokeStyle="#1e2a36"; ctx.fillStyle="#9bb0c3"; ctx.font=(opts.compact?"9":"10")+"px sans-serif"; ctx.textAlign="left";
-  for(let m=0;m<=hi;m+=2){ const y=padT+(1-m/hi)*(h-padT-padB); ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke(); ctx.fillText(m+(opts.compact?"":" m"), 2, y+3); }
-  const ys=padT+(1-2/hi)*(h-padT-padB); ctx.strokeStyle="rgba(237,107,69,.55)"; ctx.setLineDash([4,3]); ctx.beginPath(); ctx.moveTo(padL,ys); ctx.lineTo(w-padR,ys); ctx.stroke(); ctx.setLineDash([]);
-  if(opts.compact){ ctx.fillStyle="rgba(237,107,69,.8)"; ctx.font="8px sans-serif"; ctx.fillText("sill", padL+2, ys-2); }
-  function draw(series,col){ ctx.strokeStyle=col; ctx.lineWidth=opts.compact?1.8:2; ctx.beginPath(); series.forEach(function(p,i){const x=padL+p[0]/span*(w-padL-padR), y=padT+(1-p[1]/hi)*(h-padT-padB); i?ctx.lineTo(x,y):ctx.moveTo(x,y);}); ctx.stroke(); }
-  draw(SPP,"#7dd3c7"); draw(MAL,"#fb923c");
-  const dep=+document.getElementById("dep").value;
-  [["Leave · Russell",dep,"#c4ec56"],["Minquiers",dep+180,"#e6b35a"],["Arrive · Sablons",eta,"#fb923c"]].forEach(function(mk){
-    const x=padL+Math.max(0,Math.min(span,mk[1]))/span*(w-padL-padR);
-    ctx.strokeStyle=mk[2]; ctx.globalAlpha=.85; ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,h-padB); ctx.stroke(); ctx.globalAlpha=1;
-    ctx.fillStyle=mk[2]; ctx.font="8px sans-serif"; ctx.textAlign="center"; ctx.fillText(mk[0], x, padT+8);
+  HAZA.forEach(function(h){
+    path(h.p); bctx.fillStyle=mapStyle==="vector"?"rgba(251,191,36,0.16)":"rgba(255,180,60,0.18)"; bctx.fill();
+    bctx.setLineDash([5,4]); bctx.strokeStyle="#fbbf24"; bctx.lineWidth=1.8; bctx.stroke(); bctx.setLineDash([]);
   });
-  const x=padL+(((min%1440)+1440)%1440)/span*(w-padL-padR); ctx.strokeStyle="#e6b35a"; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,h-padB); ctx.stroke();
-  ctx.fillStyle="#9bb0c3"; ctx.textAlign="center"; ctx.font="9px sans-serif";
-  [0,720,1440,2160].forEach(function(m){ ctx.fillText(hhmm(m%1440), padL+m/span*(w-padL-padR), h-3); });
 }
-function paintPages(min,eta){
-  const hs=tideAt(SPP,min), hm=tideAt(MAL,min), s=streamAt(min);
-  document.getElementById("tideClock").textContent=hhmm(min);
-  document.getElementById("portClock").textContent=hhmm(min);
-  document.getElementById("sppNow").textContent=hs.toFixed(1)+" m CD";
-  document.getElementById("malNow").textContent=hm.toFixed(1)+" m CD";
-  document.getElementById("sppNext").textContent=nextExt(SPP,min);
-  document.getElementById("malNext").textContent=nextExt(MAL,min);
-  document.getElementById("sill").innerHTML=(hm>=2?"<span class='ok'>above sill</span>":"<span class='no'>at / below sill</span>")+" · "+hm.toFixed(1)+" m";
-  const hw=nearestHW(SPP,min);
-  document.getElementById("vic").innerHTML=(Math.abs(min-hw[0])<=180?"<span class='ok'>inside</span>":"<span class='no'>outside</span>")+" · HW "+hhmm(hw[0]);
-  const mhw=nearestHW(MAL,min), md=min-mhw[0];
-  document.getElementById("lock").innerHTML=((md>=-150&&md<=90)?"in":"no in")+" / "+((md>=-120&&md<=120)?"out":"no out")+" · HW "+hhmm(mhw[0]);
-  document.getElementById("portStr").textContent=s.kn.toFixed(1)+" kn "+cardDir(s.dir)+" "+s.phase;
+function drawShafts(min){
